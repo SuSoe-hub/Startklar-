@@ -35,26 +35,39 @@ export async function GET(request: NextRequest) {
       ? "1 Kunde wartet heute auf euch in Startklar."
       : `${anzahl} Kunden warten heute auf euch in Startklar.`;
 
-  const nachricht = {
-    "@type": "MessageCard",
-    "@context": "http://schema.org/extensions",
-    summary: "Startklar Erinnerung",
-    themeColor: "16645C",
-    title: "Startklar",
-    text,
-    potentialAction: [
+  // Der Teams-Workflow-Webhook (Power Automate, Vorlage "Webhookwarnungen an
+  // einen Chat senden") erwartet direkt eine Adaptive Card als Body, kein
+  // klassisches MessageCard-Format.
+  const adaptiveCard = {
+    type: "AdaptiveCard",
+    $schema: "http://adaptivecards.io/schemas/adaptive-card.json",
+    version: "1.4",
+    body: [
       {
-        "@type": "OpenUri",
-        name: "Jetzt öffnen",
-        targets: [{ os: "default", uri: appUrl }],
+        type: "TextBlock",
+        text: "Startklar",
+        weight: "Bolder",
+        size: "Medium",
+      },
+      {
+        type: "TextBlock",
+        text,
+        wrap: true,
+      },
+    ],
+    actions: [
+      {
+        type: "Action.OpenUrl",
+        title: "Jetzt öffnen",
+        url: appUrl,
       },
     ],
   };
 
   const antwort = await fetch(webhookUrl, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(nachricht),
+    headers: { "Content-Type": "application/json; charset=utf-8" },
+    body: JSON.stringify(adaptiveCard),
   });
 
   if (!antwort.ok) {
