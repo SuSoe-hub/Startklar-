@@ -1,0 +1,130 @@
+"use client";
+
+import { useActionState, useState } from "react";
+import Link from "next/link";
+import {
+  createKunde,
+  checkDuplicateKunde,
+  type DuplicateHinweis,
+  type KundeFormState,
+} from "@/lib/actions";
+
+const initialState: KundeFormState = { error: null };
+
+export default function KundeForm() {
+  const [state, formAction, pending] = useActionState(
+    createKunde,
+    initialState
+  );
+  const [handynummer, setHandynummer] = useState("");
+  const [email, setEmail] = useState("");
+  const [hinweis, setHinweis] = useState<DuplicateHinweis>(null);
+
+  async function pruefeDublette(handy: string, mail: string) {
+    const result = await checkDuplicateKunde(handy, mail);
+    setHinweis(result);
+  }
+
+  return (
+    <form action={formAction} className="flex flex-col gap-4 max-w-md">
+      <div className="flex flex-col gap-1">
+        <label htmlFor="vorname" className="text-sm font-semibold">
+          Vorname *
+        </label>
+        <input
+          id="vorname"
+          name="vorname"
+          required
+          className="input"
+        />
+      </div>
+
+      <div className="flex flex-col gap-1">
+        <label htmlFor="nachname" className="text-sm font-semibold">
+          Nachname *
+        </label>
+        <input
+          id="nachname"
+          name="nachname"
+          required
+          className="input"
+        />
+      </div>
+
+      <div className="flex flex-col gap-1">
+        <label htmlFor="typ" className="text-sm font-semibold">
+          Typ *
+        </label>
+        <select
+          id="typ"
+          name="typ"
+          required
+          defaultValue=""
+          className="input"
+        >
+          <option value="" disabled>
+            Bitte wählen
+          </option>
+          <option value="NEUKUNDE">Neukunde</option>
+          <option value="STAMMKUNDE">Stammkunde</option>
+        </select>
+      </div>
+
+      <div className="flex flex-col gap-1">
+        <label htmlFor="handynummer" className="text-sm font-semibold">
+          Handynummer
+        </label>
+        <input
+          id="handynummer"
+          name="handynummer"
+          value={handynummer}
+          onChange={(e) => setHandynummer(e.target.value)}
+          onBlur={() => pruefeDublette(handynummer, email)}
+          className="input"
+        />
+      </div>
+
+      <div className="flex flex-col gap-1">
+        <label htmlFor="email" className="text-sm font-semibold">
+          E-Mail
+        </label>
+        <input
+          id="email"
+          name="email"
+          type="email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          onBlur={() => pruefeDublette(handynummer, email)}
+          className="input"
+        />
+      </div>
+
+      <p className="text-xs text-[var(--color-muted)]">
+        Mindestens Handynummer oder E-Mail wird benötigt. Ist nur eines von
+        beiden ausgefüllt, wird der Kunde trotzdem gespeichert und orange
+        markiert.
+      </p>
+
+      {hinweis && (
+        <div className="card border-l-4 border-l-[var(--color-primary-400)] bg-[var(--color-primary-50)]/60 p-3 text-sm">
+          {hinweis.letzteBeratung
+            ? `${hinweis.name} wurde am ${hinweis.letzteBeratung.datum} von ${hinweis.letzteBeratung.berater} beraten.`
+            : `${hinweis.name} ist bereits als Kunde angelegt.`}{" "}
+          <Link href={`/kunden/${hinweis.kundeId}`} className="font-semibold link">
+            Vorgang öffnen?
+          </Link>
+        </div>
+      )}
+
+      {state.error && (
+        <p className="text-sm text-red-600" role="alert">
+          {state.error}
+        </p>
+      )}
+
+      <button type="submit" disabled={pending} className="btn-primary self-start">
+        {pending ? "Speichern…" : "Kunde speichern"}
+      </button>
+    </form>
+  );
+}

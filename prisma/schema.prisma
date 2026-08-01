@@ -1,0 +1,124 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Get a free hosted Postgres database in seconds: `npx create-db`
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+enum KundeTyp {
+  NEUKUNDE
+  STAMMKUNDE
+}
+
+enum VorgangStatus {
+  ANGEBOT_RAUS
+  NACHFASSEN
+  GEBUCHT
+  VERLOREN
+}
+
+enum Kanal {
+  EMAIL
+  WHATSAPP
+  TELEFON
+  VOR_ORT
+}
+
+enum Buchungsweg {
+  PERSOENLICH
+  SCHRIFTLICH
+}
+
+model Mitarbeiter {
+  id            String        @id @default(cuid())
+  name          String        @unique
+  pinHash       String?
+  pinSalt       String?
+  vorgaenge     Vorgang[]
+  anwesenheiten Anwesenheit[]
+  sessions      Session[]
+  notizen       Notiz[]
+  createdAt     DateTime      @default(now())
+}
+
+model Session {
+  id            String      @id @default(cuid())
+  token         String      @unique
+  mitarbeiter   Mitarbeiter @relation(fields: [mitarbeiterId], references: [id])
+  mitarbeiterId String
+  expiresAt     DateTime
+  createdAt     DateTime    @default(now())
+
+  @@index([mitarbeiterId])
+}
+
+model Anwesenheit {
+  id            String      @id @default(cuid())
+  datum         String
+  mitarbeiter   Mitarbeiter @relation(fields: [mitarbeiterId], references: [id])
+  mitarbeiterId String
+
+  @@unique([datum, mitarbeiterId])
+}
+
+model Kunde {
+  id             String    @id @default(cuid())
+  vorname        String
+  nachname       String
+  handynummer    String?
+  email          String?
+  typ            KundeTyp
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  vorgaenge      Vorgang[]
+
+  @@index([handynummer])
+  @@index([email])
+}
+
+model Vorgang {
+  id             String        @id @default(cuid())
+  kunde          Kunde         @relation(fields: [kundeId], references: [id])
+  kundeId        String
+  berater        Mitarbeiter   @relation(fields: [beraterId], references: [id])
+  beraterId      String
+  erstelltAm     DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+  kanal          Kanal
+  status         VorgangStatus @default(ANGEBOT_RAUS)
+  wiedervorlage  DateTime?
+  buchungsweg    Buchungsweg?
+  verlustgrund   String?
+  archiviert     Boolean       @default(false)
+  notizen        Notiz[]
+
+  @@index([kundeId])
+  @@index([beraterId])
+  @@index([status])
+  @@index([wiedervorlage])
+}
+
+model Einstellungen {
+  id                          Int     @id @default(1)
+  schwelleWiederholteAnfragen Int     @default(3)
+  smileysAktiviert            Boolean @default(true)
+}
+
+model Notiz {
+  id            String       @id @default(cuid())
+  vorgang       Vorgang      @relation(fields: [vorgangId], references: [id])
+  vorgangId     String
+  text          String
+  erstelltAm    DateTime     @default(now())
+  mitarbeiter   Mitarbeiter? @relation(fields: [mitarbeiterId], references: [id])
+  mitarbeiterId String?
+
+  @@index([vorgangId])
+}

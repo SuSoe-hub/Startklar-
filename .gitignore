@@ -39,3 +39,15 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+/src/generated/prisma
+
+# lokale Datenbank (enthält echte/Test-Kundendaten, nie einchecken)
+/dev.db
+/prisma/dev.db
+
+# KI-Assistent-Werkzeugkonfiguration, kein Projekt-Code
+/.agents
+/.claude
+/.windsurf
+skills-lock.json
