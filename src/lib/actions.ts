@@ -5,6 +5,13 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { heutigesDatumString } from "@/lib/teampool";
 import { getAktuellerMitarbeiter } from "@/lib/auth";
+import {
+  pruefeErsterVorgang,
+  pruefeZehnVorgaengeHeute,
+  pruefeAlleWiedervorlagenErledigt,
+  pruefeOptionRechtzeitig,
+  pruefeUebernommen,
+} from "@/lib/anerkennung";
 
 export type DuplicateHinweis = {
   kundeId: string;
@@ -130,16 +137,32 @@ export async function createVorgang(
   });
 
   revalidatePath(`/kunden/${kundeId}`);
-  redirect(`/vorgaenge/${vorgang.id}`);
+
+  const jetzt = new Date();
+  const anerkennung =
+    (await pruefeErsterVorgang(beraterId, jetzt)) ??
+    (await pruefeZehnVorgaengeHeute(beraterId, jetzt));
+
+  redirect(
+    `/vorgaenge/${vorgang.id}${
+      anerkennung ? `?anerkennung=${encodeURIComponent(anerkennung)}` : ""
+    }`
+  );
 }
 
-export type StatusFormState = { error: string | null; ermutigung: string | null };
+export type StatusFormState = {
+  error: string | null;
+  ermutigung: string | null;
+  anerkennung: string | null;
+};
 
 const ERMUTIGUNGEN = [
   "Nicht jede Anfrage wird zur Buchung – weiter geht's mit dem nächsten Kunden.",
   "Kommt vor. Der nächste Kunde wartet schon.",
   "Schade um diesen einen – der Rest vom Tag zählt genauso.",
 ];
+
+const OPTIONSART_WERTE = ["KUNDENOPTION", "INTERN"] as const;
 
 export async function updateVorgangStatus(
   vorgangId: string,
@@ -151,28 +174,103 @@ export async function updateVorgangStatus(
   const verlustgrund = ((formData.get("verlustgrund") as string) ?? "").trim();
 
   if (status === "GEBUCHT" && !buchungsweg) {
-    return { error: "Bitte Buchungsweg auswählen.", ermutigung: null };
+    return { error: "Bitte Buchungsweg auswählen.", ermutigung: null, anerkennung: null };
   }
   if (status === "VERLOREN" && !verlustgrund) {
-    return { error: "Bitte kurzen Verlustgrund angeben.", ermutigung: null };
+    return {
+      error: "Bitte kurzen Verlustgrund angeben.",
+      ermutigung: null,
+      anerkennung: null,
+    };
   }
 
   const vorgang = await prisma.vorgang.findUnique({ where: { id: vorgangId } });
   if (!vorgang) {
-    return { error: "Vorgang nicht gefunden.", ermutigung: null };
+    return { error: "Vorgang nicht gefunden.", ermutigung: null, anerkennung: null };
   }
 
-  await prisma.vorgang.update({
-    where: { id: vorgangId },
-    data: {
-      status: status as "ANGEBOT_RAUS" | "NACHFASSEN" | "GEBUCHT" | "VERLOREN",
-      buchungsweg:
-        status === "GEBUCHT"
-          ? (buchungsweg as "PERSOENLICH" | "SCHRIFTLICH")
-          : null,
-      verlustgrund: status === "VERLOREN" ? verlustgrund : null,
-    },
-  });
+  if (status === "OPTION") {
+    const optionsArt = formData.get("optionsArt") as string;
+    const vorgangsnummer = (
+      (formData.get("optionVorgangsnummer") as string) ?? ""
+    ).trim();
+    const veranstalterId = (formData.get("optionVeranstalterId") as string) || "";
+    const veranstalterSonstige = (
+      (formData.get("optionVeranstalterSonstige") as string) ?? ""
+    ).trim();
+    const fristRaw = (formData.get("optionsfrist") as string) ?? "";
+    const optionNotiz = ((formData.get("optionNotiz") as string) ?? "").trim();
+
+    if (
+      !OPTIONSART_WERTE.includes(
+        optionsArt as (typeof OPTIONSART_WERTE)[number]
+      )
+    ) {
+      return {
+        error: "Bitte Optionsart auswählen.",
+        ermutigung: null,
+        anerkennung: null,
+      };
+    }
+    if (!vorgangsnummer) {
+      return {
+        error: "Bitte Vorgangsnummer beim Veranstalter angeben.",
+        ermutigung: null,
+        anerkennung: null,
+      };
+    }
+    if (!veranstalterId) {
+      return {
+        error: "Bitte Veranstalter auswählen.",
+        ermutigung: null,
+        anerkennung: null,
+      };
+    }
+    if (veranstalterId === "SONSTIGE" && !veranstalterSonstige) {
+      return {
+        error: "Bitte Namen des Veranstalters eintragen.",
+        ermutigung: null,
+        anerkennung: null,
+      };
+    }
+    if (!fristRaw) {
+      return {
+        error: "Bitte Optionsfrist angeben.",
+        ermutigung: null,
+        anerkennung: null,
+      };
+    }
+
+    await prisma.vorgang.update({
+      where: { id: vorgangId },
+      data: {
+        status: "OPTION",
+        vorherigerStatus: vorgang.status,
+        optionsArt: optionsArt as (typeof OPTIONSART_WERTE)[number],
+        optionVorgangsnummer: vorgangsnummer,
+        optionVeranstalterId:
+          veranstalterId === "SONSTIGE" ? null : veranstalterId,
+        optionVeranstalterSonstige:
+          veranstalterId === "SONSTIGE" ? veranstalterSonstige : null,
+        optionsfrist: new Date(fristRaw),
+        optionNotiz: optionNotiz || null,
+        buchungsweg: null,
+        verlustgrund: null,
+      },
+    });
+  } else {
+    await prisma.vorgang.update({
+      where: { id: vorgangId },
+      data: {
+        status: status as "ANGEBOT_RAUS" | "NACHFASSEN" | "GEBUCHT" | "VERLOREN",
+        buchungsweg:
+          status === "GEBUCHT"
+            ? (buchungsweg as "PERSOENLICH" | "SCHRIFTLICH")
+            : null,
+        verlustgrund: status === "VERLOREN" ? verlustgrund : null,
+      },
+    });
+  }
 
   revalidatePath(`/vorgaenge/${vorgangId}`);
   revalidatePath(`/kunden/${vorgang.kundeId}`);
@@ -183,10 +281,158 @@ export async function updateVorgangStatus(
       ? ERMUTIGUNGEN[Math.floor(Math.random() * ERMUTIGUNGEN.length)]
       : null;
 
-  return { error: null, ermutigung };
+  const jetzt = new Date();
+  const aktuellerMitarbeiter = await getAktuellerMitarbeiter();
+  let anerkennung: string | null = null;
+  if (aktuellerMitarbeiter) {
+    if (vorgang.status === "OPTION" && status === "GEBUCHT") {
+      anerkennung = await pruefeOptionRechtzeitig(
+        aktuellerMitarbeiter.id,
+        jetzt,
+        vorgang.optionsfrist
+      );
+    }
+    if (!anerkennung) {
+      anerkennung = await pruefeAlleWiedervorlagenErledigt(
+        aktuellerMitarbeiter.id,
+        jetzt
+      );
+    }
+  }
+
+  return { error: null, ermutigung, anerkennung };
 }
 
-export type WiedervorlageFormState = { error: string | null };
+export type OptionVerlaengertFormState = {
+  error: string | null;
+  anerkennung: string | null;
+};
+
+export async function verlaengereOption(
+  vorgangId: string,
+  _prevState: OptionVerlaengertFormState,
+  formData: FormData
+): Promise<OptionVerlaengertFormState> {
+  const fristRaw = (formData.get("optionsfrist") as string) ?? "";
+  if (!fristRaw) {
+    return { error: "Bitte neue Frist angeben.", anerkennung: null };
+  }
+
+  const vorgang = await prisma.vorgang.findUnique({ where: { id: vorgangId } });
+  if (!vorgang) {
+    return { error: "Vorgang nicht gefunden.", anerkennung: null };
+  }
+  if (vorgang.status !== "OPTION") {
+    return { error: "Vorgang ist keine offene Option mehr.", anerkennung: null };
+  }
+
+  const alteFrist = vorgang.optionsfrist;
+  const neueFrist = new Date(fristRaw);
+
+  await prisma.$transaction([
+    prisma.vorgang.update({
+      where: { id: vorgangId },
+      data: { optionsfrist: neueFrist },
+    }),
+    prisma.notiz.create({
+      data: {
+        vorgangId,
+        text: `Option verlängert: bisherige Frist ${
+          alteFrist?.toLocaleString("de-DE") ?? "unbekannt"
+        }, neue Frist ${neueFrist.toLocaleString("de-DE")}.`,
+      },
+    }),
+  ]);
+
+  revalidatePath(`/vorgaenge/${vorgangId}`);
+  revalidatePath("/");
+
+  const jetzt = new Date();
+  const aktuellerMitarbeiter = await getAktuellerMitarbeiter();
+  const anerkennung = aktuellerMitarbeiter
+    ? await pruefeOptionRechtzeitig(aktuellerMitarbeiter.id, jetzt, alteFrist)
+    : null;
+
+  return { error: null, anerkennung };
+}
+
+export type OptionAufloesenFormState = {
+  error: string | null;
+  anerkennung: string | null;
+};
+
+export async function loeseOptionAuf(
+  vorgangId: string,
+  _prevState: OptionAufloesenFormState,
+  formData: FormData
+): Promise<OptionAufloesenFormState> {
+  const kundeHatAbgesagt = formData.get("kundeHatAbgesagt") === "on";
+  const verlustgrund = ((formData.get("verlustgrund") as string) ?? "").trim();
+
+  const vorgang = await prisma.vorgang.findUnique({ where: { id: vorgangId } });
+  if (!vorgang) {
+    return { error: "Vorgang nicht gefunden.", anerkennung: null };
+  }
+  if (vorgang.status !== "OPTION") {
+    return { error: "Vorgang ist keine offene Option mehr.", anerkennung: null };
+  }
+
+  let neuerStatus: "NACHFASSEN" | "ANGEBOT_RAUS" | "VERLOREN";
+  let neuerVerlustgrund: string | null = null;
+  let notizText: string;
+
+  if (vorgang.optionsArt === "INTERN") {
+    // Kunde weiß nichts von der Reservierung – nie eine kundengerichtete
+    // Aktion, deshalb einfach zurück zum Status vor der Option.
+    neuerStatus =
+      vorgang.vorherigerStatus === "ANGEBOT_RAUS" ? "ANGEBOT_RAUS" : "NACHFASSEN";
+    notizText =
+      "Interne Option aufgelöst (beim Veranstalter storniert). Kunde wurde nicht kontaktiert.";
+  } else if (kundeHatAbgesagt) {
+    if (!verlustgrund) {
+      return {
+        error: "Bitte kurz angeben, warum der Kunde abgesagt hat.",
+        anerkennung: null,
+      };
+    }
+    neuerStatus = "VERLOREN";
+    neuerVerlustgrund = verlustgrund;
+    notizText = "Option aufgelöst: Kunde hat abgesagt.";
+  } else {
+    neuerStatus = "NACHFASSEN";
+    notizText =
+      "Option aufgelöst (beim Veranstalter storniert), Kunde entscheidet sich noch.";
+  }
+
+  await prisma.$transaction([
+    prisma.vorgang.update({
+      where: { id: vorgangId },
+      data: { status: neuerStatus, verlustgrund: neuerVerlustgrund },
+    }),
+    prisma.notiz.create({ data: { vorgangId, text: notizText } }),
+  ]);
+
+  revalidatePath(`/vorgaenge/${vorgangId}`);
+  revalidatePath(`/kunden/${vorgang.kundeId}`);
+  revalidatePath("/");
+
+  const jetzt = new Date();
+  const aktuellerMitarbeiter = await getAktuellerMitarbeiter();
+  const anerkennung = aktuellerMitarbeiter
+    ? await pruefeOptionRechtzeitig(
+        aktuellerMitarbeiter.id,
+        jetzt,
+        vorgang.optionsfrist
+      )
+    : null;
+
+  return { error: null, anerkennung };
+}
+
+export type WiedervorlageFormState = {
+  error: string | null;
+  anerkennung: string | null;
+};
 
 export async function updateWiedervorlage(
   vorgangId: string,
@@ -195,12 +441,12 @@ export async function updateWiedervorlage(
 ): Promise<WiedervorlageFormState> {
   const raw = (formData.get("wiedervorlage") as string) ?? "";
   if (!raw) {
-    return { error: "Bitte Datum und Uhrzeit angeben." };
+    return { error: "Bitte Datum und Uhrzeit angeben.", anerkennung: null };
   }
 
   const vorgang = await prisma.vorgang.findUnique({ where: { id: vorgangId } });
   if (!vorgang) {
-    return { error: "Vorgang nicht gefunden." };
+    return { error: "Vorgang nicht gefunden.", anerkennung: null };
   }
 
   await prisma.vorgang.update({
@@ -209,7 +455,14 @@ export async function updateWiedervorlage(
   });
 
   revalidatePath(`/vorgaenge/${vorgangId}`);
-  return { error: null };
+
+  const jetzt = new Date();
+  const aktuellerMitarbeiter = await getAktuellerMitarbeiter();
+  const anerkennung = aktuellerMitarbeiter
+    ? await pruefeAlleWiedervorlagenErledigt(aktuellerMitarbeiter.id, jetzt)
+    : null;
+
+  return { error: null, anerkennung };
 }
 
 export type NotizFormState = { error: string | null };
@@ -329,6 +582,50 @@ export async function deleteKunde(
   redirect("/kunden");
 }
 
+export type VeranstalterFormState = { error: string | null };
+
+export async function addVeranstalter(
+  _prevState: VeranstalterFormState,
+  formData: FormData
+): Promise<VeranstalterFormState> {
+  const code = ((formData.get("code") as string) ?? "").trim().toUpperCase();
+  if (!code) {
+    return { error: "Bitte ein Kürzel eingeben." };
+  }
+  if (code === "SONSTIGE") {
+    return { error: "„Sonstige“ ist bereits fest eingebaut." };
+  }
+
+  const bestehend = await prisma.veranstalter.findUnique({ where: { code } });
+  if (bestehend) {
+    return { error: "Dieses Kürzel gibt es schon." };
+  }
+
+  await prisma.veranstalter.create({ data: { code } });
+  revalidatePath("/einstellungen");
+  return { error: null };
+}
+
+export async function removeVeranstalter(
+  veranstalterId: string,
+  _prevState: VeranstalterFormState,
+  _formData: FormData
+): Promise<VeranstalterFormState> {
+  const inVerwendung = await prisma.vorgang.count({
+    where: { optionVeranstalterId: veranstalterId },
+  });
+  if (inVerwendung > 0) {
+    return {
+      error:
+        "Dieser Veranstalter wird noch bei mindestens einer Option verwendet und kann deshalb nicht gelöscht werden.",
+    };
+  }
+
+  await prisma.veranstalter.delete({ where: { id: veranstalterId } });
+  revalidatePath("/einstellungen");
+  return { error: null };
+}
+
 export async function markiereAnwesend(mitarbeiterId: string) {
   const datum = heutigesDatumString(new Date());
 
@@ -341,7 +638,10 @@ export async function markiereAnwesend(mitarbeiterId: string) {
   revalidatePath("/");
 }
 
-export type UebernahmeFormState = { error: string | null };
+export type UebernahmeFormState = {
+  error: string | null;
+  anerkennung: string | null;
+};
 
 export async function uebernehmeVorgang(
   vorgangId: string,
@@ -350,7 +650,7 @@ export async function uebernehmeVorgang(
 ): Promise<UebernahmeFormState> {
   const neuerBeraterId = formData.get("neuerBeraterId") as string;
   if (!neuerBeraterId) {
-    return { error: "Bitte auswählen, wer übernimmt." };
+    return { error: "Bitte auswählen, wer übernimmt.", anerkennung: null };
   }
 
   const vorgang = await prisma.vorgang.findUnique({
@@ -358,14 +658,14 @@ export async function uebernehmeVorgang(
     include: { berater: true },
   });
   if (!vorgang) {
-    return { error: "Vorgang nicht gefunden." };
+    return { error: "Vorgang nicht gefunden.", anerkennung: null };
   }
 
   const neuerBerater = await prisma.mitarbeiter.findUnique({
     where: { id: neuerBeraterId },
   });
   if (!neuerBerater) {
-    return { error: "Mitarbeiter nicht gefunden." };
+    return { error: "Mitarbeiter nicht gefunden.", anerkennung: null };
   }
 
   await prisma.$transaction([
@@ -383,5 +683,8 @@ export async function uebernehmeVorgang(
 
   revalidatePath("/");
   revalidatePath(`/vorgaenge/${vorgangId}`);
-  return { error: null };
+
+  const anerkennung = await pruefeUebernommen(neuerBeraterId, new Date());
+
+  return { error: null, anerkennung };
 }

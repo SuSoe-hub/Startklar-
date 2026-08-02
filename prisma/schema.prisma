@@ -19,9 +19,15 @@ enum KundeTyp {
 
 enum VorgangStatus {
   ANGEBOT_RAUS
+  OPTION
   NACHFASSEN
   GEBUCHT
   VERLOREN
+}
+
+enum OptionsArt {
+  KUNDENOPTION
+  INTERN
 }
 
 enum Kanal {
@@ -99,10 +105,30 @@ model Vorgang {
   archiviert     Boolean       @default(false)
   notizen        Notiz[]
 
+  // Option (siehe Startklar_Erweiterung_Optionen.md)
+  // vorherigerStatus merkt sich, aus welchem Status heraus die Option gesetzt
+  // wurde (ANGEBOT_RAUS oder NACHFASSEN), damit "Aufgelöst" bei einer internen
+  // Option dorthin zurückspringen kann, ohne dass der Kunde je kontaktiert wird.
+  vorherigerStatus      VorgangStatus?
+  optionsArt            OptionsArt?
+  optionVorgangsnummer  String?
+  optionVeranstalter    Veranstalter? @relation(fields: [optionVeranstalterId], references: [id])
+  optionVeranstalterId  String?
+  optionVeranstalterSonstige String?
+  optionsfrist           DateTime?
+  optionNotiz            String?
+
   @@index([kundeId])
   @@index([beraterId])
   @@index([status])
   @@index([wiedervorlage])
+  @@index([optionsfrist])
+}
+
+model Veranstalter {
+  id        String    @id @default(cuid())
+  code      String    @unique
+  vorgaenge Vorgang[]
 }
 
 model Einstellungen {

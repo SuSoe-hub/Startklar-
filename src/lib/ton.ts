@@ -4,3 +4,8 @@ export function begruessung(jetzt: Date) {
   if (stunde < 18) return "Guten Tag";
   return "Guten Abend";
 }
+
+// Nur morgens ein Kaffee-Smiley zur Begrüßung, siehe begruessung().
+export function begruessungsSmiley(jetzt: Date) {
+  return jetzt.getHours() < 11 ? "☕" : null;
+}

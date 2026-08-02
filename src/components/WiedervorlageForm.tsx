@@ -5,8 +5,9 @@ import {
   updateWiedervorlage,
   type WiedervorlageFormState,
 } from "@/lib/actions";
+import AnerkennungToast from "@/components/AnerkennungToast";
 
-const initialState: WiedervorlageFormState = { error: null };
+const initialState: WiedervorlageFormState = { error: null, anerkennung: null };
 
 function toLocalInputValue(iso: string | null) {
   if (!iso) return "";
@@ -49,6 +50,7 @@ export default function WiedervorlageForm({
           {state.error}
         </p>
       )}
+      {state.anerkennung && <AnerkennungToast text={state.anerkennung} />}
     </form>
   );
 }

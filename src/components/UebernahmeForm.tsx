@@ -2,8 +2,9 @@
 
 import { useActionState } from "react";
 import { uebernehmeVorgang, type UebernahmeFormState } from "@/lib/actions";
+import AnerkennungToast from "@/components/AnerkennungToast";
 
-const initialState: UebernahmeFormState = { error: null };
+const initialState: UebernahmeFormState = { error: null, anerkennung: null };
 
 export default function UebernahmeForm({
   vorgangId,
@@ -39,6 +40,7 @@ export default function UebernahmeForm({
         {pending ? "…" : "Ich übernehme"}
       </button>
       {state.error && <p className="text-xs text-red-600">{state.error}</p>}
+      {state.anerkennung && <AnerkennungToast text={state.anerkennung} />}
     </form>
   );
 }

@@ -9,12 +9,25 @@ const prisma = new PrismaClient({ adapter });
 
 const namen = ["Malo", "Hannah", "Alysha", "Fernando", "Mohsen", "Susanna", "Sait"];
 
+const veranstalterCodes = [
+  "TUID", "DER", "SLR", "COR", "ANEX", "ALL", "BYE", "LMX",
+  "VTO", "FER", "ITS", "BCH", "OGE", "NEC", "BU",
+];
+
 async function main() {
   for (const name of namen) {
     await prisma.mitarbeiter.upsert({
       where: { name },
       update: {},
       create: { name },
+    });
+  }
+
+  for (const code of veranstalterCodes) {
+    await prisma.veranstalter.upsert({
+      where: { code },
+      update: {},
+      create: { code },
     });
   }
 }
