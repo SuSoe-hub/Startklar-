@@ -71,6 +71,13 @@ export function wiederholteAnfrageHinweisDaten(
   const erste = sortiert[0];
   const letzte = sortiert[sortiert.length - 1];
 
+  // "ohne Buchung" bezieht sich nur auf die letzten 12 Monate (siehe
+  // ohneBuchungLetzte12Monate). Ein Kunde kann trotzdem schon einmal
+  // (länger zurückliegend oder über einen anderen Vorgang) gebucht haben –
+  // das muss der Hinweistext unterscheiden, sonst behauptet er fälschlich,
+  // der Kunde habe noch nie gebucht.
+  const hatJemalsGebucht = vorgaenge.some((v) => v.status === "GEBUCHT");
+
   return {
     anzahlBisher: relevante.length,
     seitMonatJahr: erste.erstelltAm.toLocaleDateString("de-DE", {
@@ -82,5 +89,6 @@ export function wiederholteAnfrageHinweisDaten(
       day: "2-digit",
       month: "2-digit",
     }),
+    hatJemalsGebucht,
   };
 }

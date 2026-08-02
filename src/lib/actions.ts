@@ -125,35 +125,54 @@ export async function createVorgang(
 
   const wiedervorlage = wiedervorlageRaw ? new Date(wiedervorlageRaw) : null;
 
-  const vorgang = await prisma.vorgang.create({
-    data: {
-      kundeId,
-      beraterId,
-      kanal: kanal as (typeof KANAL_WERTE)[number],
-      status: "ANGEBOT_RAUS",
-      wiedervorlage,
-      notizen: notizText ? { create: [{ text: notizText }] } : undefined,
-    },
-  });
+  let zielUrl: string;
+  try {
+    const vorgang = await prisma.vorgang.create({
+      data: {
+        kundeId,
+        beraterId,
+        kanal: kanal as (typeof KANAL_WERTE)[number],
+        status: "ANGEBOT_RAUS",
+        wiedervorlage,
+        notizen: notizText ? { create: [{ text: notizText }] } : undefined,
+      },
+    });
 
-  revalidatePath(`/kunden/${kundeId}`);
+    revalidatePath(`/kunden/${kundeId}`);
 
-  const jetzt = new Date();
-  const anerkennung =
-    (await pruefeErsterVorgang(beraterId, jetzt)) ??
-    (await pruefeZehnVorgaengeHeute(beraterId, jetzt));
+    const jetzt = new Date();
+    const anerkennung =
+      (await pruefeErsterVorgang(beraterId, jetzt)) ??
+      (await pruefeZehnVorgaengeHeute(beraterId, jetzt));
 
-  redirect(
-    `/vorgaenge/${vorgang.id}${
+    zielUrl = `/vorgaenge/${vorgang.id}${
       anerkennung ? `?anerkennung=${encodeURIComponent(anerkennung)}` : ""
-    }`
-  );
+    }`;
+  } catch (fehler) {
+    console.error("createVorgang fehlgeschlagen:", fehler);
+    return { error: "Speichern fehlgeschlagen, bitte erneut versuchen." };
+  }
+
+  // redirect() wirft intern ein spezielles Next.js-Signal – bewusst außerhalb
+  // des try/catch, damit es nicht versehentlich als Fehler abgefangen wird.
+  redirect(zielUrl);
 }
 
 export type StatusFormState = {
   error: string | null;
   ermutigung: string | null;
   anerkennung: string | null;
+  // Wird bei jedem Abschluss der Aktion (Erfolg ODER Fehler) mit
+  // zurückgegeben, damit die Formularfelder im Client hart auf diesen Wert
+  // zurückgesetzt werden können. Grund: React/Next setzen das native
+  // <form>-Element nach jeder Server Action zurück, was kontrollierte
+  // <select>-Elemente optisch von ihrem eigentlichen Wert abweichen lassen
+  // kann (der Select zeigt dann z. B. wieder den Ausgangsstatus, obwohl der
+  // Nutzer "Option" gewählt hatte). Ohne dieses Echo lässt sich das nicht
+  // zuverlässig erkennen.
+  status: string;
+  buchungsweg: string | null;
+  verlustgrund: string | null;
 };
 
 const ERMUTIGUNGEN = [
@@ -163,6 +182,13 @@ const ERMUTIGUNGEN = [
 ];
 
 const OPTIONSART_WERTE = ["KUNDENOPTION", "INTERN"] as const;
+const STATUS_WERTE = [
+  "ANGEBOT_RAUS",
+  "OPTION",
+  "NACHFASSEN",
+  "GEBUCHT",
+  "VERLOREN",
+] as const;
 
 export async function updateVorgangStatus(
   vorgangId: string,
@@ -173,134 +199,195 @@ export async function updateVorgangStatus(
   const buchungsweg = (formData.get("buchungsweg") as string) || null;
   const verlustgrund = ((formData.get("verlustgrund") as string) ?? "").trim();
 
+  if (!STATUS_WERTE.includes(status as (typeof STATUS_WERTE)[number])) {
+    return {
+      error: "Ungültiger Status.",
+      ermutigung: null,
+      anerkennung: null,
+      status: "ANGEBOT_RAUS",
+      buchungsweg: null,
+      verlustgrund: null,
+    };
+  }
   if (status === "GEBUCHT" && !buchungsweg) {
-    return { error: "Bitte Buchungsweg auswählen.", ermutigung: null, anerkennung: null };
+    return {
+      error: "Bitte Buchungsweg auswählen.",
+      ermutigung: null,
+      anerkennung: null,
+      status,
+      buchungsweg: null,
+      verlustgrund: null,
+    };
   }
   if (status === "VERLOREN" && !verlustgrund) {
     return {
       error: "Bitte kurzen Verlustgrund angeben.",
       ermutigung: null,
       anerkennung: null,
+      status,
+      buchungsweg: null,
+      verlustgrund: null,
     };
   }
 
-  const vorgang = await prisma.vorgang.findUnique({ where: { id: vorgangId } });
-  if (!vorgang) {
-    return { error: "Vorgang nicht gefunden.", ermutigung: null, anerkennung: null };
+  try {
+    const vorgang = await prisma.vorgang.findUnique({ where: { id: vorgangId } });
+    if (!vorgang) {
+      return {
+        error: "Vorgang nicht gefunden.",
+        ermutigung: null,
+        anerkennung: null,
+        status,
+        buchungsweg,
+        verlustgrund: verlustgrund || null,
+      };
+    }
+
+    if (status === "OPTION") {
+      const optionsArt = formData.get("optionsArt") as string;
+      const vorgangsnummer = (
+        (formData.get("optionVorgangsnummer") as string) ?? ""
+      ).trim();
+      const veranstalterId = (formData.get("optionVeranstalterId") as string) || "";
+      const veranstalterSonstige = (
+        (formData.get("optionVeranstalterSonstige") as string) ?? ""
+      ).trim();
+      const fristRaw = (formData.get("optionsfrist") as string) ?? "";
+      const optionNotiz = ((formData.get("optionNotiz") as string) ?? "").trim();
+
+      if (
+        !OPTIONSART_WERTE.includes(
+          optionsArt as (typeof OPTIONSART_WERTE)[number]
+        )
+      ) {
+        return {
+          error: "Bitte Optionsart auswählen.",
+          ermutigung: null,
+          anerkennung: null,
+          status,
+          buchungsweg: null,
+          verlustgrund: null,
+        };
+      }
+      if (!vorgangsnummer) {
+        return {
+          error: "Bitte Vorgangsnummer beim Veranstalter angeben.",
+          ermutigung: null,
+          anerkennung: null,
+          status,
+          buchungsweg: null,
+          verlustgrund: null,
+        };
+      }
+      if (!veranstalterId) {
+        return {
+          error: "Bitte Veranstalter auswählen.",
+          ermutigung: null,
+          anerkennung: null,
+          status,
+          buchungsweg: null,
+          verlustgrund: null,
+        };
+      }
+      if (veranstalterId === "SONSTIGE" && !veranstalterSonstige) {
+        return {
+          error: "Bitte Namen des Veranstalters eintragen.",
+          ermutigung: null,
+          anerkennung: null,
+          status,
+          buchungsweg: null,
+          verlustgrund: null,
+        };
+      }
+      if (!fristRaw) {
+        return {
+          error: "Bitte Optionsfrist angeben.",
+          ermutigung: null,
+          anerkennung: null,
+          status,
+          buchungsweg: null,
+          verlustgrund: null,
+        };
+      }
+
+      await prisma.vorgang.update({
+        where: { id: vorgangId },
+        data: {
+          status: "OPTION",
+          vorherigerStatus: vorgang.status,
+          optionsArt: optionsArt as (typeof OPTIONSART_WERTE)[number],
+          optionVorgangsnummer: vorgangsnummer,
+          optionVeranstalterId:
+            veranstalterId === "SONSTIGE" ? null : veranstalterId,
+          optionVeranstalterSonstige:
+            veranstalterId === "SONSTIGE" ? veranstalterSonstige : null,
+          optionsfrist: new Date(fristRaw),
+          optionNotiz: optionNotiz || null,
+          buchungsweg: null,
+          verlustgrund: null,
+        },
+      });
+    } else {
+      await prisma.vorgang.update({
+        where: { id: vorgangId },
+        data: {
+          status: status as "ANGEBOT_RAUS" | "NACHFASSEN" | "GEBUCHT" | "VERLOREN",
+          buchungsweg:
+            status === "GEBUCHT"
+              ? (buchungsweg as "PERSOENLICH" | "SCHRIFTLICH")
+              : null,
+          verlustgrund: status === "VERLOREN" ? verlustgrund : null,
+        },
+      });
+    }
+
+    revalidatePath(`/vorgaenge/${vorgangId}`);
+    revalidatePath(`/kunden/${vorgang.kundeId}`);
+    revalidatePath("/");
+
+    const ermutigung =
+      status === "VERLOREN"
+        ? ERMUTIGUNGEN[Math.floor(Math.random() * ERMUTIGUNGEN.length)]
+        : null;
+
+    const jetzt = new Date();
+    const aktuellerMitarbeiter = await getAktuellerMitarbeiter();
+    let anerkennung: string | null = null;
+    if (aktuellerMitarbeiter) {
+      if (vorgang.status === "OPTION" && status === "GEBUCHT") {
+        anerkennung = await pruefeOptionRechtzeitig(
+          aktuellerMitarbeiter.id,
+          jetzt,
+          vorgang.optionsfrist
+        );
+      }
+      if (!anerkennung) {
+        anerkennung = await pruefeAlleWiedervorlagenErledigt(
+          aktuellerMitarbeiter.id,
+          jetzt
+        );
+      }
+    }
+
+    return {
+      error: null,
+      ermutigung,
+      anerkennung,
+      status,
+      buchungsweg: status === "GEBUCHT" ? buchungsweg : null,
+      verlustgrund: status === "VERLOREN" ? verlustgrund : null,
+    };
+  } catch (fehler) {
+    console.error("updateVorgangStatus fehlgeschlagen:", fehler);
+    return {
+      error: "Speichern fehlgeschlagen, bitte erneut versuchen.",
+      ermutigung: null,
+      anerkennung: null,
+      status,
+      buchungsweg,
+      verlustgrund: verlustgrund || null,
+    };
   }
-
-  if (status === "OPTION") {
-    const optionsArt = formData.get("optionsArt") as string;
-    const vorgangsnummer = (
-      (formData.get("optionVorgangsnummer") as string) ?? ""
-    ).trim();
-    const veranstalterId = (formData.get("optionVeranstalterId") as string) || "";
-    const veranstalterSonstige = (
-      (formData.get("optionVeranstalterSonstige") as string) ?? ""
-    ).trim();
-    const fristRaw = (formData.get("optionsfrist") as string) ?? "";
-    const optionNotiz = ((formData.get("optionNotiz") as string) ?? "").trim();
-
-    if (
-      !OPTIONSART_WERTE.includes(
-        optionsArt as (typeof OPTIONSART_WERTE)[number]
-      )
-    ) {
-      return {
-        error: "Bitte Optionsart auswählen.",
-        ermutigung: null,
-        anerkennung: null,
-      };
-    }
-    if (!vorgangsnummer) {
-      return {
-        error: "Bitte Vorgangsnummer beim Veranstalter angeben.",
-        ermutigung: null,
-        anerkennung: null,
-      };
-    }
-    if (!veranstalterId) {
-      return {
-        error: "Bitte Veranstalter auswählen.",
-        ermutigung: null,
-        anerkennung: null,
-      };
-    }
-    if (veranstalterId === "SONSTIGE" && !veranstalterSonstige) {
-      return {
-        error: "Bitte Namen des Veranstalters eintragen.",
-        ermutigung: null,
-        anerkennung: null,
-      };
-    }
-    if (!fristRaw) {
-      return {
-        error: "Bitte Optionsfrist angeben.",
-        ermutigung: null,
-        anerkennung: null,
-      };
-    }
-
-    await prisma.vorgang.update({
-      where: { id: vorgangId },
-      data: {
-        status: "OPTION",
-        vorherigerStatus: vorgang.status,
-        optionsArt: optionsArt as (typeof OPTIONSART_WERTE)[number],
-        optionVorgangsnummer: vorgangsnummer,
-        optionVeranstalterId:
-          veranstalterId === "SONSTIGE" ? null : veranstalterId,
-        optionVeranstalterSonstige:
-          veranstalterId === "SONSTIGE" ? veranstalterSonstige : null,
-        optionsfrist: new Date(fristRaw),
-        optionNotiz: optionNotiz || null,
-        buchungsweg: null,
-        verlustgrund: null,
-      },
-    });
-  } else {
-    await prisma.vorgang.update({
-      where: { id: vorgangId },
-      data: {
-        status: status as "ANGEBOT_RAUS" | "NACHFASSEN" | "GEBUCHT" | "VERLOREN",
-        buchungsweg:
-          status === "GEBUCHT"
-            ? (buchungsweg as "PERSOENLICH" | "SCHRIFTLICH")
-            : null,
-        verlustgrund: status === "VERLOREN" ? verlustgrund : null,
-      },
-    });
-  }
-
-  revalidatePath(`/vorgaenge/${vorgangId}`);
-  revalidatePath(`/kunden/${vorgang.kundeId}`);
-  revalidatePath("/");
-
-  const ermutigung =
-    status === "VERLOREN"
-      ? ERMUTIGUNGEN[Math.floor(Math.random() * ERMUTIGUNGEN.length)]
-      : null;
-
-  const jetzt = new Date();
-  const aktuellerMitarbeiter = await getAktuellerMitarbeiter();
-  let anerkennung: string | null = null;
-  if (aktuellerMitarbeiter) {
-    if (vorgang.status === "OPTION" && status === "GEBUCHT") {
-      anerkennung = await pruefeOptionRechtzeitig(
-        aktuellerMitarbeiter.id,
-        jetzt,
-        vorgang.optionsfrist
-      );
-    }
-    if (!anerkennung) {
-      anerkennung = await pruefeAlleWiedervorlagenErledigt(
-        aktuellerMitarbeiter.id,
-        jetzt
-      );
-    }
-  }
-
-  return { error: null, ermutigung, anerkennung };
 }
 
 export type OptionVerlaengertFormState = {
@@ -318,42 +405,47 @@ export async function verlaengereOption(
     return { error: "Bitte neue Frist angeben.", anerkennung: null };
   }
 
-  const vorgang = await prisma.vorgang.findUnique({ where: { id: vorgangId } });
-  if (!vorgang) {
-    return { error: "Vorgang nicht gefunden.", anerkennung: null };
+  try {
+    const vorgang = await prisma.vorgang.findUnique({ where: { id: vorgangId } });
+    if (!vorgang) {
+      return { error: "Vorgang nicht gefunden.", anerkennung: null };
+    }
+    if (vorgang.status !== "OPTION") {
+      return { error: "Vorgang ist keine offene Option mehr.", anerkennung: null };
+    }
+
+    const alteFrist = vorgang.optionsfrist;
+    const neueFrist = new Date(fristRaw);
+
+    await prisma.$transaction([
+      prisma.vorgang.update({
+        where: { id: vorgangId },
+        data: { optionsfrist: neueFrist },
+      }),
+      prisma.notiz.create({
+        data: {
+          vorgangId,
+          text: `Option verlängert: bisherige Frist ${
+            alteFrist?.toLocaleString("de-DE") ?? "unbekannt"
+          }, neue Frist ${neueFrist.toLocaleString("de-DE")}.`,
+        },
+      }),
+    ]);
+
+    revalidatePath(`/vorgaenge/${vorgangId}`);
+    revalidatePath("/");
+
+    const jetzt = new Date();
+    const aktuellerMitarbeiter = await getAktuellerMitarbeiter();
+    const anerkennung = aktuellerMitarbeiter
+      ? await pruefeOptionRechtzeitig(aktuellerMitarbeiter.id, jetzt, alteFrist)
+      : null;
+
+    return { error: null, anerkennung };
+  } catch (fehler) {
+    console.error("verlaengereOption fehlgeschlagen:", fehler);
+    return { error: "Speichern fehlgeschlagen, bitte erneut versuchen.", anerkennung: null };
   }
-  if (vorgang.status !== "OPTION") {
-    return { error: "Vorgang ist keine offene Option mehr.", anerkennung: null };
-  }
-
-  const alteFrist = vorgang.optionsfrist;
-  const neueFrist = new Date(fristRaw);
-
-  await prisma.$transaction([
-    prisma.vorgang.update({
-      where: { id: vorgangId },
-      data: { optionsfrist: neueFrist },
-    }),
-    prisma.notiz.create({
-      data: {
-        vorgangId,
-        text: `Option verlängert: bisherige Frist ${
-          alteFrist?.toLocaleString("de-DE") ?? "unbekannt"
-        }, neue Frist ${neueFrist.toLocaleString("de-DE")}.`,
-      },
-    }),
-  ]);
-
-  revalidatePath(`/vorgaenge/${vorgangId}`);
-  revalidatePath("/");
-
-  const jetzt = new Date();
-  const aktuellerMitarbeiter = await getAktuellerMitarbeiter();
-  const anerkennung = aktuellerMitarbeiter
-    ? await pruefeOptionRechtzeitig(aktuellerMitarbeiter.id, jetzt, alteFrist)
-    : null;
-
-  return { error: null, anerkennung };
 }
 
 export type OptionAufloesenFormState = {
@@ -369,64 +461,69 @@ export async function loeseOptionAuf(
   const kundeHatAbgesagt = formData.get("kundeHatAbgesagt") === "on";
   const verlustgrund = ((formData.get("verlustgrund") as string) ?? "").trim();
 
-  const vorgang = await prisma.vorgang.findUnique({ where: { id: vorgangId } });
-  if (!vorgang) {
-    return { error: "Vorgang nicht gefunden.", anerkennung: null };
-  }
-  if (vorgang.status !== "OPTION") {
-    return { error: "Vorgang ist keine offene Option mehr.", anerkennung: null };
-  }
-
-  let neuerStatus: "NACHFASSEN" | "ANGEBOT_RAUS" | "VERLOREN";
-  let neuerVerlustgrund: string | null = null;
-  let notizText: string;
-
-  if (vorgang.optionsArt === "INTERN") {
-    // Kunde weiß nichts von der Reservierung – nie eine kundengerichtete
-    // Aktion, deshalb einfach zurück zum Status vor der Option.
-    neuerStatus =
-      vorgang.vorherigerStatus === "ANGEBOT_RAUS" ? "ANGEBOT_RAUS" : "NACHFASSEN";
-    notizText =
-      "Interne Option aufgelöst (beim Veranstalter storniert). Kunde wurde nicht kontaktiert.";
-  } else if (kundeHatAbgesagt) {
-    if (!verlustgrund) {
-      return {
-        error: "Bitte kurz angeben, warum der Kunde abgesagt hat.",
-        anerkennung: null,
-      };
+  try {
+    const vorgang = await prisma.vorgang.findUnique({ where: { id: vorgangId } });
+    if (!vorgang) {
+      return { error: "Vorgang nicht gefunden.", anerkennung: null };
     }
-    neuerStatus = "VERLOREN";
-    neuerVerlustgrund = verlustgrund;
-    notizText = "Option aufgelöst: Kunde hat abgesagt.";
-  } else {
-    neuerStatus = "NACHFASSEN";
-    notizText =
-      "Option aufgelöst (beim Veranstalter storniert), Kunde entscheidet sich noch.";
+    if (vorgang.status !== "OPTION") {
+      return { error: "Vorgang ist keine offene Option mehr.", anerkennung: null };
+    }
+
+    let neuerStatus: "NACHFASSEN" | "ANGEBOT_RAUS" | "VERLOREN";
+    let neuerVerlustgrund: string | null = null;
+    let notizText: string;
+
+    if (vorgang.optionsArt === "INTERN") {
+      // Kunde weiß nichts von der Reservierung – nie eine kundengerichtete
+      // Aktion, deshalb einfach zurück zum Status vor der Option.
+      neuerStatus =
+        vorgang.vorherigerStatus === "ANGEBOT_RAUS" ? "ANGEBOT_RAUS" : "NACHFASSEN";
+      notizText =
+        "Interne Option aufgelöst (beim Veranstalter storniert). Kunde wurde nicht kontaktiert.";
+    } else if (kundeHatAbgesagt) {
+      if (!verlustgrund) {
+        return {
+          error: "Bitte kurz angeben, warum der Kunde abgesagt hat.",
+          anerkennung: null,
+        };
+      }
+      neuerStatus = "VERLOREN";
+      neuerVerlustgrund = verlustgrund;
+      notizText = "Option aufgelöst: Kunde hat abgesagt.";
+    } else {
+      neuerStatus = "NACHFASSEN";
+      notizText =
+        "Option aufgelöst (beim Veranstalter storniert), Kunde entscheidet sich noch.";
+    }
+
+    await prisma.$transaction([
+      prisma.vorgang.update({
+        where: { id: vorgangId },
+        data: { status: neuerStatus, verlustgrund: neuerVerlustgrund },
+      }),
+      prisma.notiz.create({ data: { vorgangId, text: notizText } }),
+    ]);
+
+    revalidatePath(`/vorgaenge/${vorgangId}`);
+    revalidatePath(`/kunden/${vorgang.kundeId}`);
+    revalidatePath("/");
+
+    const jetzt = new Date();
+    const aktuellerMitarbeiter = await getAktuellerMitarbeiter();
+    const anerkennung = aktuellerMitarbeiter
+      ? await pruefeOptionRechtzeitig(
+          aktuellerMitarbeiter.id,
+          jetzt,
+          vorgang.optionsfrist
+        )
+      : null;
+
+    return { error: null, anerkennung };
+  } catch (fehler) {
+    console.error("loeseOptionAuf fehlgeschlagen:", fehler);
+    return { error: "Speichern fehlgeschlagen, bitte erneut versuchen.", anerkennung: null };
   }
-
-  await prisma.$transaction([
-    prisma.vorgang.update({
-      where: { id: vorgangId },
-      data: { status: neuerStatus, verlustgrund: neuerVerlustgrund },
-    }),
-    prisma.notiz.create({ data: { vorgangId, text: notizText } }),
-  ]);
-
-  revalidatePath(`/vorgaenge/${vorgangId}`);
-  revalidatePath(`/kunden/${vorgang.kundeId}`);
-  revalidatePath("/");
-
-  const jetzt = new Date();
-  const aktuellerMitarbeiter = await getAktuellerMitarbeiter();
-  const anerkennung = aktuellerMitarbeiter
-    ? await pruefeOptionRechtzeitig(
-        aktuellerMitarbeiter.id,
-        jetzt,
-        vorgang.optionsfrist
-      )
-    : null;
-
-  return { error: null, anerkennung };
 }
 
 export type WiedervorlageFormState = {
@@ -444,25 +541,30 @@ export async function updateWiedervorlage(
     return { error: "Bitte Datum und Uhrzeit angeben.", anerkennung: null };
   }
 
-  const vorgang = await prisma.vorgang.findUnique({ where: { id: vorgangId } });
-  if (!vorgang) {
-    return { error: "Vorgang nicht gefunden.", anerkennung: null };
+  try {
+    const vorgang = await prisma.vorgang.findUnique({ where: { id: vorgangId } });
+    if (!vorgang) {
+      return { error: "Vorgang nicht gefunden.", anerkennung: null };
+    }
+
+    await prisma.vorgang.update({
+      where: { id: vorgangId },
+      data: { wiedervorlage: new Date(raw) },
+    });
+
+    revalidatePath(`/vorgaenge/${vorgangId}`);
+
+    const jetzt = new Date();
+    const aktuellerMitarbeiter = await getAktuellerMitarbeiter();
+    const anerkennung = aktuellerMitarbeiter
+      ? await pruefeAlleWiedervorlagenErledigt(aktuellerMitarbeiter.id, jetzt)
+      : null;
+
+    return { error: null, anerkennung };
+  } catch (fehler) {
+    console.error("updateWiedervorlage fehlgeschlagen:", fehler);
+    return { error: "Speichern fehlgeschlagen, bitte erneut versuchen.", anerkennung: null };
   }
-
-  await prisma.vorgang.update({
-    where: { id: vorgangId },
-    data: { wiedervorlage: new Date(raw) },
-  });
-
-  revalidatePath(`/vorgaenge/${vorgangId}`);
-
-  const jetzt = new Date();
-  const aktuellerMitarbeiter = await getAktuellerMitarbeiter();
-  const anerkennung = aktuellerMitarbeiter
-    ? await pruefeAlleWiedervorlagenErledigt(aktuellerMitarbeiter.id, jetzt)
-    : null;
-
-  return { error: null, anerkennung };
 }
 
 export type NotizFormState = { error: string | null };
@@ -653,38 +755,43 @@ export async function uebernehmeVorgang(
     return { error: "Bitte auswählen, wer übernimmt.", anerkennung: null };
   }
 
-  const vorgang = await prisma.vorgang.findUnique({
-    where: { id: vorgangId },
-    include: { berater: true },
-  });
-  if (!vorgang) {
-    return { error: "Vorgang nicht gefunden.", anerkennung: null };
-  }
-
-  const neuerBerater = await prisma.mitarbeiter.findUnique({
-    where: { id: neuerBeraterId },
-  });
-  if (!neuerBerater) {
-    return { error: "Mitarbeiter nicht gefunden.", anerkennung: null };
-  }
-
-  await prisma.$transaction([
-    prisma.vorgang.update({
+  try {
+    const vorgang = await prisma.vorgang.findUnique({
       where: { id: vorgangId },
-      data: { beraterId: neuerBeraterId },
-    }),
-    prisma.notiz.create({
-      data: {
-        vorgangId,
-        text: `Übernommen von ${neuerBerater.name} (ursprünglich ${vorgang.berater.name}), da abwesend.`,
-      },
-    }),
-  ]);
+      include: { berater: true },
+    });
+    if (!vorgang) {
+      return { error: "Vorgang nicht gefunden.", anerkennung: null };
+    }
 
-  revalidatePath("/");
-  revalidatePath(`/vorgaenge/${vorgangId}`);
+    const neuerBerater = await prisma.mitarbeiter.findUnique({
+      where: { id: neuerBeraterId },
+    });
+    if (!neuerBerater) {
+      return { error: "Mitarbeiter nicht gefunden.", anerkennung: null };
+    }
 
-  const anerkennung = await pruefeUebernommen(neuerBeraterId, new Date());
+    await prisma.$transaction([
+      prisma.vorgang.update({
+        where: { id: vorgangId },
+        data: { beraterId: neuerBeraterId },
+      }),
+      prisma.notiz.create({
+        data: {
+          vorgangId,
+          text: `Übernommen von ${neuerBerater.name} (ursprünglich ${vorgang.berater.name}), da abwesend.`,
+        },
+      }),
+    ]);
 
-  return { error: null, anerkennung };
+    revalidatePath("/");
+    revalidatePath(`/vorgaenge/${vorgangId}`);
+
+    const anerkennung = await pruefeUebernommen(neuerBeraterId, new Date());
+
+    return { error: null, anerkennung };
+  } catch (fehler) {
+    console.error("uebernehmeVorgang fehlgeschlagen:", fehler);
+    return { error: "Speichern fehlgeschlagen, bitte erneut versuchen.", anerkennung: null };
+  }
 }

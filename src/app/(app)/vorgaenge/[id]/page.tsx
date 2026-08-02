@@ -113,6 +113,8 @@ export default async function VorgangDetailPage({
           <VorgangStatusForm
             vorgangId={vorgang.id}
             status={vorgang.status}
+            buchungsweg={vorgang.buchungsweg}
+            verlustgrund={vorgang.verlustgrund}
             veranstalter={veranstalterListe}
             vorschlagOptionsfrist={datumZuDatetimeLocal(vorschlagFrist)}
           />

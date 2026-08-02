@@ -15,6 +15,9 @@ const statusInitialState: StatusFormState = {
   error: null,
   ermutigung: null,
   anerkennung: null,
+  status: "OPTION",
+  buchungsweg: null,
+  verlustgrund: null,
 };
 const verlaengertInitialState: OptionVerlaengertFormState = {
   error: null,

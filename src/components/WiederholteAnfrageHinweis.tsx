@@ -7,11 +7,13 @@ export default function WiederholteAnfrageHinweis({
   seitMonatJahr,
   letzterBerater,
   letztesDatum,
+  hatJemalsGebucht,
 }: {
   anzahlBisher: number;
   seitMonatJahr: string;
   letzterBerater: string;
   letztesDatum: string;
+  hatJemalsGebucht: boolean;
 }) {
   const [offen, setOffen] = useState(false);
 
@@ -27,8 +29,10 @@ export default function WiederholteAnfrageHinweis({
       </button>
       {offen && (
         <p className="mt-1 text-sm text-[var(--color-muted)] border-l-2 border-[var(--color-border)] pl-2">
-          {anzahlBisher + 1}. Anfrage seit {seitMonatJahr}, bisher keine
-          Buchung. Zuletzt beraten von {letzterBerater} am {letztesDatum}
+          {anzahlBisher + 1}. Anfrage seit {seitMonatJahr}, davon keine in
+          den letzten 12 Monaten gebucht
+          {hatJemalsGebucht ? " (frühere Buchung vorhanden)" : ""}. Zuletzt
+          beraten von {letzterBerater} am {letztesDatum}
         </p>
       )}
     </div>

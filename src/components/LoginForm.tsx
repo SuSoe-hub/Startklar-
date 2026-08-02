@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useState, type ChangeEvent } from "react";
 import { login, type LoginFormState } from "@/lib/auth-actions";
 
 const initialState: LoginFormState = { error: null };
@@ -54,6 +54,16 @@ function PinSchritt({
 }) {
   const action = login.bind(null, mitarbeiter.id);
   const [state, formAction, pending] = useActionState(action, initialState);
+  const [pin, setPin] = useState("");
+
+  // Chrome/Edge versuchen bei einem <input type="password"> gerne gespeicherte
+  // Zugangsdaten einzufügen, was hier zu falschen/zusätzlichen Zeichen führen
+  // kann. autoComplete="one-time-code" signalisiert dem Browser, dass es sich
+  // um einen kurzen Einmalcode statt eines echten Passworts handelt. Zusätzlich
+  // wird hart auf genau 4 Ziffern begrenzt, unabhängig davon, was eingefügt wird.
+  const handlePinChange = (e: ChangeEvent<HTMLInputElement>) => {
+    setPin(e.target.value.replace(/\D/g, "").slice(0, 4));
+  };
 
   return (
     <form action={formAction} className="flex flex-col gap-4">
@@ -77,8 +87,11 @@ function PinSchritt({
           inputMode="numeric"
           pattern="\d{4}"
           maxLength={4}
+          autoComplete="one-time-code"
           autoFocus
           required
+          value={pin}
+          onChange={handlePinChange}
           className="input text-center text-lg tracking-[0.5em]"
         />
         {!mitarbeiter.hatPin && (
@@ -92,7 +105,11 @@ function PinSchritt({
           {state.error}
         </p>
       )}
-      <button type="submit" disabled={pending} className="btn-primary">
+      <button
+        type="submit"
+        disabled={pending || pin.length !== 4}
+        className="btn-primary"
+      >
         {pending
           ? "…"
           : mitarbeiter.hatPin
