@@ -178,7 +178,7 @@ export type StatusFormState = {
 const ERMUTIGUNGEN = [
   "Nicht jede Anfrage wird zur Buchung – weiter geht's mit dem nächsten Kunden.",
   "Kommt vor. Der nächste Kunde wartet schon.",
-  "Schade um diesen einen – der Rest vom Tag zählt genauso.",
+  "Kopf hoch und glaube an dich!",
 ];
 
 const OPTIONSART_WERTE = ["KUNDENOPTION", "INTERN"] as const;
