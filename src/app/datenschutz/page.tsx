@@ -87,14 +87,32 @@ export default function DatenschutzPage() {
           <section>
             <h2 className="font-bold mb-1">4. Cookies</h2>
             <p>
-              Startklar setzt genau ein Cookie: ein technisch notwendiges
-              Sitzungscookie, das nach dem Login die Anmeldung für bis zu 90
-              Tage speichert. Es dient ausschließlich der Bereitstellung der
-              Anwendung selbst (Art. 6 Abs. 1 S. 1 lit. f DSGVO) und wird
-              nicht zu Analyse-, Marketing- oder Trackingzwecken eingesetzt.
-              Weitere Cookies, Analyse-Werkzeuge oder Drittanbieter-Skripte
-              (z. B. Google Analytics, Werbe- oder Social-Media-Plug-ins)
-              werden in Startklar nicht verwendet.
+              Startklar setzt zwei Cookies, beide ausschließlich technisch
+              notwendig für den Betrieb der Anwendung selbst (Art. 6 Abs. 1
+              S. 1 lit. f DSGVO bzw. § 25 Abs. 2 TTDSG):
+            </p>
+            <ul className="list-disc pl-5 mt-2 space-y-1">
+              <li>
+                ein Sitzungscookie, das nach dem Login die Anmeldung für bis
+                zu 90 Tage speichert (mit zusätzlichem Inaktivitäts-Timeout
+                nach 30 Minuten, siehe unten);
+              </li>
+              <li>
+                ein kleines Cookie, das sich merkt, ob einem Teammitglied
+                bereits eine kurze Anerkennungs-Rückmeldung (z. B. bei
+                besonders vielen erledigten Vorgängen an einem Tag) gezeigt
+                wurde, damit diese höchstens einmal pro Tag erscheint. Es
+                zählt oder speichert nichts dauerhaft und verfällt nach 24
+                Stunden.
+              </li>
+            </ul>
+            <p className="mt-2">
+              Beide Cookies dienen ausschließlich der Bereitstellung der
+              Anwendung selbst, keinem Tracking, keiner Analyse und keinem
+              Marketing. Es werden keine Analyse-Werkzeuge oder
+              Drittanbieter-Skripte (z. B. Google Analytics, Werbe- oder
+              Social-Media-Plug-ins) eingesetzt, daher ist kein
+              Cookie-Consent-Banner erforderlich.
             </p>
           </section>
 
@@ -104,18 +122,23 @@ export default function DatenschutzPage() {
             </h2>
             <p>
               Startklar wird technisch betrieben mithilfe folgender
-              Dienstleister, mit denen jeweils ein Auftragsverarbeitungsvertrag
-              besteht bzw. abzuschließen ist:
+              Dienstleister als Auftragsverarbeiter:
             </p>
             <ul className="list-disc pl-5 mt-2 space-y-1">
               <li>
                 <strong>Vercel Inc.</strong> – Hosting und Betrieb der
-                Anwendung.
+                Anwendung (Serverstandort Frankfurt/EU, siehe Ziff. 6). Es
+                gilt Vercels Standard-Auftragsverarbeitungsvertrag (Data
+                Processing Addendum), der über die Vercel-Nutzungsbedingungen
+                automatisch eingeschlossen ist.
               </li>
               <li>
                 <strong>Prisma Data, Inc.</strong> (Prisma Postgres) –
                 Speicherung der Datenbank mit den oben genannten Kunden- und
-                Mitarbeiterdaten.
+                Mitarbeiterdaten (Serverstandort Frankfurt/EU, siehe Ziff.
+                6). Es gilt ebenfalls Prismas Standard-Auftragsverarbeitungs-
+                vertrag, der über die Nutzungsbedingungen automatisch
+                eingeschlossen ist.
               </li>
               <li>
                 <strong>Microsoft (Teams)</strong> – Startklar sendet täglich
@@ -123,25 +146,46 @@ export default function DatenschutzPage() {
                 Unternehmens. Übermittelt wird ausschließlich eine Anzahl
                 fälliger Vorgänge (z. B. „3 Kunden warten heute auf euch"),
                 keine Namen, Kontaktdaten oder sonstigen personenbezogenen
-                Kundendaten.
+                Kundendaten. Da hier bereits ein Microsoft-365-Vertrag des
+                Unternehmens besteht, ist die Auftragsverarbeitung darüber
+                mitabgedeckt.
               </li>
             </ul>
+            <p className="mt-2 text-sm text-[var(--color-muted)]">
+              <em>
+                Bitte fachlich prüfen: Für Vercel und Prisma wurden bislang
+                keine gesondert unterschriebenen DPA-Dokumente abgelegt,
+                sondern nur deren automatisch geltende Standardverträge
+                genutzt. Falls die Kanzlei eine explizit gegengezeichnete
+                Fassung für die Unterlagen wünscht, können beide über die
+                jeweiligen Account-Einstellungen angefordert werden.
+              </em>
+            </p>
           </section>
 
           <section>
             <h2 className="font-bold mb-1">
-              6. Übermittlung in Staaten außerhalb der EU/des EWR
+              6. Serverstandort und Übermittlung in Staaten außerhalb der
+              EU/des EWR
             </h2>
             <p>
-              Vercel und Prisma sind US-Unternehmen. Je nach gebuchter
-              Serverregion ist nicht auszuschließen, dass Daten auch außerhalb
-              der EU/des EWR verarbeitet werden.{" "}
-              <em>
-                Bitte fachlich prüfen: Serverstandort/-region bei Vercel und
-                Prisma Postgres für dieses Projekt noch bestätigen und hier
-                konkret eintragen, ggf. inklusive der eingesetzten
-                Garantien (z. B. EU-Standardvertragsklauseln).
-              </em>
+              Sowohl die Datenbank (Prisma Postgres, Region{" "}
+              <strong>eu-central-1, Frankfurt am Main</strong>) als auch die
+              Anwendung selbst (Vercel Functions, seit 03.08.2026 fest auf
+              Region <strong>eu-central-1 (fra1), Frankfurt am Main</strong>{" "}
+              eingestellt) werden innerhalb der EU betrieben. Die eigentliche
+              Datenverarbeitung findet somit in Deutschland/der EU statt.
+            </p>
+            <p className="mt-2">
+              Sowohl Vercel Inc. als auch Prisma Data, Inc. sind
+              US-Unternehmen. Auch bei Ausführung in einer EU-Region kann ein
+              Restrisiko bestehen, dass z. B. Metadaten, Logs oder
+              Support-Zugriffe über die globale Infrastruktur dieser Anbieter
+              laufen. Mit beiden Anbietern gelten deren Standard-
+              Auftragsverarbeitungsverträge (siehe Ziff. 5); soweit dabei
+              ausnahmsweise ein Bezug in die USA entstehen sollte, stützen
+              sich beide Anbieter nach eigenen Angaben auf die
+              EU-Standardvertragsklauseln.
             </p>
           </section>
 
