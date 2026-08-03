@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Nunito, Geist_Mono } from "next/font/google";
 import StrandHintergrund from "@/components/StrandHintergrund";
+import Footer from "@/components/Footer";
 import "./globals.css";
 
 const nunito = Nunito({
@@ -32,6 +33,7 @@ export default function RootLayout({
       <body className="min-h-full flex flex-col">
         <StrandHintergrund />
         {children}
+        <Footer />
       </body>
     </html>
   );
