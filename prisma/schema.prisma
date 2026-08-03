@@ -47,6 +47,8 @@ model Mitarbeiter {
   name          String        @unique
   pinHash       String?
   pinSalt       String?
+  fehlversuche  Int           @default(0)
+  gesperrtBis   DateTime?
   vorgaenge     Vorgang[]
   anwesenheiten Anwesenheit[]
   sessions      Session[]

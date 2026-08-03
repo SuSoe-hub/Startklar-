@@ -7,6 +7,8 @@ import { hashePin, pruefePin, erstelleSession, beendeSession } from "@/lib/auth"
 export type LoginFormState = { error: string | null };
 
 const PIN_REGEX = /^\d{4}$/;
+const MAX_FEHLVERSUCHE = 5;
+const SPERRE_DAUER_MINUTEN = 15;
 
 export async function login(
   mitarbeiterId: string,
@@ -25,11 +27,22 @@ export async function login(
     return { error: "Mitarbeiter nicht gefunden." };
   }
 
+  if (mitarbeiter.gesperrtBis && mitarbeiter.gesperrtBis > new Date()) {
+    const minuten = Math.ceil(
+      (mitarbeiter.gesperrtBis.getTime() - Date.now()) / 60000
+    );
+    return {
+      error: `Zu viele Fehlversuche. Bitte in ${minuten} Minute${
+        minuten === 1 ? "" : "n"
+      } erneut versuchen.`,
+    };
+  }
+
   if (!mitarbeiter.pinHash || !mitarbeiter.pinSalt) {
     const { hash, salt } = await hashePin(pin);
     await prisma.mitarbeiter.update({
       where: { id: mitarbeiterId },
-      data: { pinHash: hash, pinSalt: salt },
+      data: { pinHash: hash, pinSalt: salt, fehlversuche: 0, gesperrtBis: null },
     });
     await erstelleSession(mitarbeiterId);
     redirect("/");
@@ -37,9 +50,28 @@ export async function login(
 
   const gueltig = await pruefePin(pin, mitarbeiter.pinHash, mitarbeiter.pinSalt);
   if (!gueltig) {
-    return { error: "Falsche PIN." };
+    const fehlversuche = mitarbeiter.fehlversuche + 1;
+    const gesperrt = fehlversuche >= MAX_FEHLVERSUCHE;
+    await prisma.mitarbeiter.update({
+      where: { id: mitarbeiterId },
+      data: {
+        fehlversuche: gesperrt ? 0 : fehlversuche,
+        gesperrtBis: gesperrt
+          ? new Date(Date.now() + SPERRE_DAUER_MINUTEN * 60000)
+          : null,
+      },
+    });
+    return {
+      error: gesperrt
+        ? `Zu viele Fehlversuche. Bitte in ${SPERRE_DAUER_MINUTEN} Minuten erneut versuchen.`
+        : "Falsche PIN.",
+    };
   }
 
+  await prisma.mitarbeiter.update({
+    where: { id: mitarbeiterId },
+    data: { fehlversuche: 0, gesperrtBis: null },
+  });
   await erstelleSession(mitarbeiterId);
   redirect("/");
 }
