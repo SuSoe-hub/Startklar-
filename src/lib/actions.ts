@@ -102,6 +102,47 @@ export async function createKunde(
   redirect(`/kunden/${kunde.id}`);
 }
 
+export async function updateKunde(
+  kundeId: string,
+  _prevState: KundeFormState,
+  formData: FormData
+): Promise<KundeFormState> {
+  const vorname = ((formData.get("vorname") as string) ?? "").trim();
+  const nachname = ((formData.get("nachname") as string) ?? "").trim();
+  const handynummer =
+    ((formData.get("handynummer") as string) ?? "").trim() || null;
+  const email = ((formData.get("email") as string) ?? "").trim() || null;
+  const typ = formData.get("typ") as string;
+
+  if (!vorname || !nachname) {
+    return { error: "Vorname und Nachname sind Pflichtfelder." };
+  }
+  if (typ !== "NEUKUNDE" && typ !== "STAMMKUNDE") {
+    return { error: "Bitte Kundentyp auswählen." };
+  }
+  if (!handynummer && !email) {
+    return {
+      error:
+        "Mindestens ein Kontaktweg (Handynummer oder E-Mail) wird benötigt.",
+    };
+  }
+
+  await prisma.kunde.update({
+    where: { id: kundeId },
+    data: {
+      vorname,
+      nachname,
+      handynummer,
+      email,
+      typ: typ as "NEUKUNDE" | "STAMMKUNDE",
+    },
+  });
+
+  revalidatePath("/kunden");
+  revalidatePath(`/kunden/${kundeId}`);
+  redirect(`/kunden/${kundeId}`);
+}
+
 export type VorgangFormState = { error: string | null };
 
 const KANAL_WERTE = ["EMAIL", "WHATSAPP", "TELEFON", "VOR_ORT"] as const;
@@ -668,20 +709,50 @@ export type DeleteKundeFormState = { error: string | null };
 export async function deleteKunde(
   kundeId: string,
   _prevState: DeleteKundeFormState,
-  _formData: FormData
+  formData: FormData
 ): Promise<DeleteKundeFormState> {
+  const mitVorgaengen = formData.get("mitVorgaengen") === "on";
   const anzahlVorgaenge = await prisma.vorgang.count({ where: { kundeId } });
-  if (anzahlVorgaenge > 0) {
+
+  if (anzahlVorgaenge > 0 && !mitVorgaengen) {
     return {
       error:
-        "Dieser Kunde hat Vorgänge und kann nicht gelöscht werden. Stattdessen mit einem anderen Kunden zusammenführen.",
+        "Dieser Kunde hat Vorgänge und kann nicht gelöscht werden. Stattdessen mit einem anderen Kunden zusammenführen, oder die Vorgänge mit löschen.",
     };
   }
 
-  await prisma.kunde.delete({ where: { id: kundeId } });
+  await prisma.$transaction([
+    prisma.notiz.deleteMany({ where: { vorgang: { kundeId } } }),
+    prisma.vorgang.deleteMany({ where: { kundeId } }),
+    prisma.kunde.delete({ where: { id: kundeId } }),
+  ]);
 
   revalidatePath("/kunden");
   redirect("/kunden");
+}
+
+export type DeleteVorgangFormState = { error: string | null };
+
+export async function deleteVorgang(
+  vorgangId: string,
+  _prevState: DeleteVorgangFormState,
+  _formData: FormData
+): Promise<DeleteVorgangFormState> {
+  const vorgang = await prisma.vorgang.findUnique({
+    where: { id: vorgangId },
+    select: { kundeId: true },
+  });
+  if (!vorgang) {
+    return { error: "Vorgang nicht gefunden." };
+  }
+
+  await prisma.$transaction([
+    prisma.notiz.deleteMany({ where: { vorgangId } }),
+    prisma.vorgang.delete({ where: { id: vorgangId } }),
+  ]);
+
+  revalidatePath(`/kunden/${vorgang.kundeId}`);
+  redirect(`/kunden/${vorgang.kundeId}`);
 }
 
 export type VeranstalterFormState = { error: string | null };

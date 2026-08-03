@@ -5,8 +5,15 @@ import { deleteKunde, type DeleteKundeFormState } from "@/lib/actions";
 
 const initialState: DeleteKundeFormState = { error: null };
 
-export default function DeleteKundeButton({ kundeId }: { kundeId: string }) {
+export default function DeleteKundeButton({
+  kundeId,
+  anzahlVorgaenge,
+}: {
+  kundeId: string;
+  anzahlVorgaenge: number;
+}) {
   const [bestaetigen, setBestaetigen] = useState(false);
+  const [mitVorgaengen, setMitVorgaengen] = useState(false);
   const action = deleteKunde.bind(null, kundeId);
   const [state, formAction, pending] = useActionState(action, initialState);
 
@@ -22,12 +29,43 @@ export default function DeleteKundeButton({ kundeId }: { kundeId: string }) {
     );
   }
 
+  const hatVorgaenge = anzahlVorgaenge > 0;
+
   return (
     <div className="text-xs flex flex-col items-start gap-2">
-      <span>Diesen Kunden wirklich unwiderruflich löschen?</span>
+      {hatVorgaenge ? (
+        <>
+          <span>
+            Dieser Kunde hat {anzahlVorgaenge}{" "}
+            {anzahlVorgaenge === 1 ? "Vorgang" : "Vorgänge"}. Diese werden
+            beim Löschen ebenfalls unwiderruflich entfernt.
+          </span>
+          <label className="flex items-center gap-1.5">
+            <input
+              type="checkbox"
+              checked={mitVorgaengen}
+              onChange={(e) => setMitVorgaengen(e.target.checked)}
+            />
+            Ja, auch alle Vorgänge löschen
+          </label>
+        </>
+      ) : (
+        <span>Diesen Kunden wirklich unwiderruflich löschen?</span>
+      )}
       <div className="flex items-center gap-2">
         <form action={formAction}>
-          <button type="submit" disabled={pending} className="btn-danger py-0.5 text-xs">
+          <input
+            type="checkbox"
+            name="mitVorgaengen"
+            checked={mitVorgaengen}
+            readOnly
+            hidden
+          />
+          <button
+            type="submit"
+            disabled={pending || (hatVorgaenge && !mitVorgaengen)}
+            className="btn-danger py-0.5 text-xs"
+          >
             {pending ? "…" : "Ja, löschen"}
           </button>
         </form>

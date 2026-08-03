@@ -44,9 +44,14 @@ export default async function KundeDetailPage({
       <Link href="/kunden" className="text-sm link">
         ← Kunden
       </Link>
-      <h1 className="text-xl font-bold tracking-tight mt-1 mb-2">
-        {kunde.vorname} {kunde.nachname}
-      </h1>
+      <div className="flex items-center justify-between mt-1 mb-2">
+        <h1 className="text-xl font-bold tracking-tight">
+          {kunde.vorname} {kunde.nachname}
+        </h1>
+        <Link href={`/kunden/${kunde.id}/bearbeiten`} className="text-sm link">
+          Bearbeiten
+        </Link>
+      </div>
       {unvollstaendig && (
         <p className="text-sm text-orange-700 font-semibold mb-3">
           Kontaktdaten unvollständig
@@ -145,8 +150,17 @@ export default async function KundeDetailPage({
         ))}
       </ul>
 
-      <div className="mt-8">
-        <DeleteKundeButton kundeId={kunde.id} />
+      <div className="mt-8 flex flex-col gap-2 items-start">
+        <a
+          href={`/kunden/${kunde.id}/export`}
+          className="text-xs text-[var(--color-muted)] underline hover:text-[var(--color-primary-600)]"
+        >
+          Daten dieses Kunden exportieren (JSON)
+        </a>
+        <DeleteKundeButton
+          kundeId={kunde.id}
+          anzahlVorgaenge={kunde.vorgaenge.length}
+        />
       </div>
     </main>
   );

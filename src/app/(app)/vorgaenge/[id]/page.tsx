@@ -6,6 +6,7 @@ import OptionAufloesenPanel from "@/components/OptionAufloesenPanel";
 import WiedervorlageForm from "@/components/WiedervorlageForm";
 import NotizForm from "@/components/NotizForm";
 import AnerkennungFlash from "@/components/AnerkennungFlash";
+import DeleteVorgangButton from "@/components/DeleteVorgangButton";
 import { heutePlusWerktage } from "@/lib/werktage";
 
 const KANAL_LABEL: Record<string, string> = {
@@ -163,6 +164,10 @@ export default async function VorgangDetailPage({
           ))}
         </ul>
       </section>
+
+      <div className="mt-2">
+        <DeleteVorgangButton vorgangId={vorgang.id} />
+      </div>
     </main>
   );
 }
