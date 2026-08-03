@@ -11,6 +11,7 @@ const scryptAsync = promisify(scrypt) as (
 
 export const SESSION_COOKIE = "startklar_session";
 const SESSION_DAUER_TAGE = 90;
+const INAKTIVITAET_MINUTEN = 30;
 
 export async function hashePin(pin: string) {
   const salt = randomBytes(16).toString("hex");
@@ -63,5 +64,17 @@ export async function getAktuellerMitarbeiter() {
   });
 
   if (!session || session.expiresAt < new Date()) return null;
+
+  const inaktivSeit = Date.now() - session.letzteAktivitaet.getTime();
+  if (inaktivSeit > INAKTIVITAET_MINUTEN * 60 * 1000) {
+    await prisma.session.delete({ where: { id: session.id } });
+    return null;
+  }
+
+  await prisma.session.update({
+    where: { id: session.id },
+    data: { letzteAktivitaet: new Date() },
+  });
+
   return session.mitarbeiter;
 }

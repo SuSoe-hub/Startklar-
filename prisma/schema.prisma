@@ -57,12 +57,13 @@ model Mitarbeiter {
 }
 
 model Session {
-  id            String      @id @default(cuid())
-  token         String      @unique
-  mitarbeiter   Mitarbeiter @relation(fields: [mitarbeiterId], references: [id])
-  mitarbeiterId String
-  expiresAt     DateTime
-  createdAt     DateTime    @default(now())
+  id               String      @id @default(cuid())
+  token            String      @unique
+  mitarbeiter      Mitarbeiter @relation(fields: [mitarbeiterId], references: [id])
+  mitarbeiterId    String
+  expiresAt        DateTime
+  letzteAktivitaet DateTime    @default(now())
+  createdAt        DateTime    @default(now())
 
   @@index([mitarbeiterId])
 }
