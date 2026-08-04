@@ -8,6 +8,7 @@ import NotizForm from "@/components/NotizForm";
 import AnerkennungFlash from "@/components/AnerkennungFlash";
 import DeleteVorgangButton from "@/components/DeleteVorgangButton";
 import { heutePlusWerktage } from "@/lib/werktage";
+import { BERLIN_TZ, berlinDatumMitUhrzeit, formatBerlinDatetimeLocal } from "@/lib/zeit";
 
 const KANAL_LABEL: Record<string, string> = {
   EMAIL: "E-Mail",
@@ -20,13 +21,6 @@ const OPTIONSART_LABEL: Record<string, string> = {
   KUNDENOPTION: "Kundenoption",
   INTERN: "Interne Option",
 };
-
-function datumZuDatetimeLocal(datum: Date) {
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return `${datum.getFullYear()}-${pad(datum.getMonth() + 1)}-${pad(
-    datum.getDate()
-  )}T${pad(datum.getHours())}:${pad(datum.getMinutes())}`;
-}
 
 export default async function VorgangDetailPage({
   params,
@@ -55,8 +49,11 @@ export default async function VorgangDetailPage({
 
   if (!vorgang) notFound();
 
-  const vorschlagFrist = new Date(heutePlusWerktage(new Date(), 3));
-  vorschlagFrist.setHours(18, 0, 0, 0);
+  const vorschlagFrist = berlinDatumMitUhrzeit(
+    heutePlusWerktage(new Date(), 3),
+    18,
+    0
+  );
 
   return (
     <main className="p-6 md:p-8 max-w-md mx-auto flex flex-col gap-6">
@@ -68,7 +65,10 @@ export default async function VorgangDetailPage({
         <h1 className="text-xl font-bold tracking-tight mt-1">Vorgang</h1>
         <p className="text-sm text-[var(--color-muted)]">
           {KANAL_LABEL[vorgang.kanal]} · Berater: {vorgang.berater.name} ·
-          angelegt am {vorgang.erstelltAm.toLocaleDateString("de-DE")}
+          angelegt am{" "}
+          {vorgang.erstelltAm.toLocaleDateString("de-DE", {
+            timeZone: BERLIN_TZ,
+          })}
         </p>
       </div>
 
@@ -90,6 +90,7 @@ export default async function VorgangDetailPage({
                 vorgang.optionVeranstalterSonstige}{" "}
               · Vorgang {vorgang.optionVorgangsnummer} · Frist{" "}
               {vorgang.optionsfrist?.toLocaleString("de-DE", {
+                timeZone: BERLIN_TZ,
                 day: "2-digit",
                 month: "2-digit",
                 hour: "2-digit",
@@ -106,8 +107,8 @@ export default async function VorgangDetailPage({
             optionsArt={vorgang.optionsArt ?? "KUNDENOPTION"}
             optionsfrist={
               vorgang.optionsfrist
-                ? datumZuDatetimeLocal(vorgang.optionsfrist)
-                : datumZuDatetimeLocal(vorschlagFrist)
+                ? formatBerlinDatetimeLocal(vorgang.optionsfrist)
+                : formatBerlinDatetimeLocal(vorschlagFrist)
             }
           />
         ) : (
@@ -117,7 +118,7 @@ export default async function VorgangDetailPage({
             buchungsweg={vorgang.buchungsweg}
             verlustgrund={vorgang.verlustgrund}
             veranstalter={veranstalterListe}
-            vorschlagOptionsfrist={datumZuDatetimeLocal(vorschlagFrist)}
+            vorschlagOptionsfrist={formatBerlinDatetimeLocal(vorschlagFrist)}
           />
         )}
 
@@ -157,7 +158,7 @@ export default async function VorgangDetailPage({
             >
               <div className="text-xs text-[var(--color-muted)]">
                 {n.mitarbeiter ? `${n.mitarbeiter.name} · ` : ""}
-                {n.erstelltAm.toLocaleString("de-DE")}
+                {n.erstelltAm.toLocaleString("de-DE", { timeZone: BERLIN_TZ })}
               </div>
               <div>{n.text}</div>
             </li>

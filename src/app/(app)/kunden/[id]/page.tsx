@@ -5,6 +5,7 @@ import { kundenStatistik } from "@/lib/kundenkarte";
 import { findeMoeglicheDubletten } from "@/lib/dubletten";
 import MergeKundeButton from "@/components/MergeKundeButton";
 import DeleteKundeButton from "@/components/DeleteKundeButton";
+import { BERLIN_TZ } from "@/lib/zeit";
 
 const STATUS_LABEL: Record<string, string> = {
   ANGEBOT_RAUS: "Angebot raus",
@@ -113,7 +114,9 @@ export default async function KundeDetailPage({
         <div className="text-[var(--color-muted)]">letzte Buchung</div>
         <div>
           {statistik.letzteBuchungAm
-            ? statistik.letzteBuchungAm.toLocaleDateString("de-DE")
+            ? statistik.letzteBuchungAm.toLocaleDateString("de-DE", {
+                timeZone: BERLIN_TZ,
+              })
             : "—"}
         </div>
       </div>
@@ -143,7 +146,9 @@ export default async function KundeDetailPage({
               </div>
               <div className="text-xs text-[var(--color-muted)] mt-0.5">
                 {v.berater.name} ·{" "}
-                {v.erstelltAm.toLocaleDateString("de-DE")}
+                {v.erstelltAm.toLocaleDateString("de-DE", {
+                  timeZone: BERLIN_TZ,
+                })}
               </div>
             </Link>
           </li>

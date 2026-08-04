@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useLayoutEffect, useRef, useState } from "react";
 import Link from "next/link";
 import {
   createKunde,
@@ -9,7 +9,14 @@ import {
   type KundeFormState,
 } from "@/lib/actions";
 
-const initialState: KundeFormState = { error: null };
+const initialState: KundeFormState = {
+  error: null,
+  vorname: "",
+  nachname: "",
+  typ: "",
+  handynummer: "",
+  email: "",
+};
 
 export default function KundeForm() {
   const [state, formAction, pending] = useActionState(
@@ -19,6 +26,22 @@ export default function KundeForm() {
   const [handynummer, setHandynummer] = useState("");
   const [email, setEmail] = useState("");
   const [hinweis, setHinweis] = useState<DuplicateHinweis>(null);
+
+  const vornameRef = useRef<HTMLInputElement>(null);
+  const nachnameRef = useRef<HTMLInputElement>(null);
+  const typRef = useRef<HTMLSelectElement>(null);
+
+  // React/Next setzen das native <form>-Element nach jeder Server Action
+  // zurück, auch bei einem Validierungsfehler (siehe VorgangStatusForm).
+  // Deshalb hier die vom Server zurückgegebenen, tatsächlich eingegebenen
+  // Werte hart auf das DOM erzwingen, statt sie verloren gehen zu lassen.
+  useLayoutEffect(() => {
+    if (vornameRef.current) vornameRef.current.value = state.vorname;
+    if (nachnameRef.current) nachnameRef.current.value = state.nachname;
+    if (typRef.current) typRef.current.value = state.typ;
+    setHandynummer(state.handynummer);
+    setEmail(state.email);
+  }, [state]);
 
   async function pruefeDublette(handy: string, mail: string) {
     const result = await checkDuplicateKunde(handy, mail);
@@ -34,6 +57,8 @@ export default function KundeForm() {
         <input
           id="vorname"
           name="vorname"
+          ref={vornameRef}
+          defaultValue={state.vorname}
           required
           className="input"
         />
@@ -46,6 +71,8 @@ export default function KundeForm() {
         <input
           id="nachname"
           name="nachname"
+          ref={nachnameRef}
+          defaultValue={state.nachname}
           required
           className="input"
         />
@@ -58,8 +85,9 @@ export default function KundeForm() {
         <select
           id="typ"
           name="typ"
+          ref={typRef}
           required
-          defaultValue=""
+          defaultValue={state.typ}
           className="input"
         >
           <option value="" disabled>

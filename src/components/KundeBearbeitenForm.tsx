@@ -1,9 +1,7 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useLayoutEffect, useRef } from "react";
 import { updateKunde, type KundeFormState } from "@/lib/actions";
-
-const initialState: KundeFormState = { error: null };
 
 export default function KundeBearbeitenForm({
   kunde,
@@ -18,7 +16,34 @@ export default function KundeBearbeitenForm({
   };
 }) {
   const action = updateKunde.bind(null, kunde.id);
+  const initialState: KundeFormState = {
+    error: null,
+    vorname: kunde.vorname,
+    nachname: kunde.nachname,
+    typ: kunde.typ,
+    handynummer: kunde.handynummer ?? "",
+    email: kunde.email ?? "",
+  };
   const [state, formAction, pending] = useActionState(action, initialState);
+
+  const vornameRef = useRef<HTMLInputElement>(null);
+  const nachnameRef = useRef<HTMLInputElement>(null);
+  const typRef = useRef<HTMLSelectElement>(null);
+  const handynummerRef = useRef<HTMLInputElement>(null);
+  const emailRef = useRef<HTMLInputElement>(null);
+
+  // React/Next setzen das native <form>-Element nach jeder Server Action
+  // zurück, auch bei einem Validierungsfehler (siehe VorgangStatusForm) -
+  // ohne das hier würden bei einem fehlgeschlagenen Speichern alle Felder
+  // auf den ursprünglichen (alten) Kundenstand zurückspringen, statt die
+  // gerade eingegebenen Werte zu behalten.
+  useLayoutEffect(() => {
+    if (vornameRef.current) vornameRef.current.value = state.vorname;
+    if (nachnameRef.current) nachnameRef.current.value = state.nachname;
+    if (typRef.current) typRef.current.value = state.typ;
+    if (handynummerRef.current) handynummerRef.current.value = state.handynummer;
+    if (emailRef.current) emailRef.current.value = state.email;
+  }, [state]);
 
   return (
     <form action={formAction} className="flex flex-col gap-4 max-w-md">
@@ -29,8 +54,9 @@ export default function KundeBearbeitenForm({
         <input
           id="vorname"
           name="vorname"
+          ref={vornameRef}
           required
-          defaultValue={kunde.vorname}
+          defaultValue={state.vorname}
           className="input"
         />
       </div>
@@ -42,8 +68,9 @@ export default function KundeBearbeitenForm({
         <input
           id="nachname"
           name="nachname"
+          ref={nachnameRef}
           required
-          defaultValue={kunde.nachname}
+          defaultValue={state.nachname}
           className="input"
         />
       </div>
@@ -55,8 +82,9 @@ export default function KundeBearbeitenForm({
         <select
           id="typ"
           name="typ"
+          ref={typRef}
           required
-          defaultValue={kunde.typ}
+          defaultValue={state.typ}
           className="input"
         >
           <option value="NEUKUNDE">Neukunde</option>
@@ -71,7 +99,8 @@ export default function KundeBearbeitenForm({
         <input
           id="handynummer"
           name="handynummer"
-          defaultValue={kunde.handynummer ?? ""}
+          ref={handynummerRef}
+          defaultValue={state.handynummer}
           className="input"
         />
       </div>
@@ -84,7 +113,8 @@ export default function KundeBearbeitenForm({
           id="email"
           name="email"
           type="email"
-          defaultValue={kunde.email ?? ""}
+          ref={emailRef}
+          defaultValue={state.email}
           className="input"
         />
       </div>

@@ -1,3 +1,5 @@
+import { BERLIN_TZ } from "@/lib/zeit";
+
 type VorgangFuerStatistik = {
   status: string;
   erstelltAm: Date;
@@ -81,11 +83,13 @@ export function wiederholteAnfrageHinweisDaten(
   return {
     anzahlBisher: relevante.length,
     seitMonatJahr: erste.erstelltAm.toLocaleDateString("de-DE", {
+      timeZone: BERLIN_TZ,
       month: "long",
       year: "numeric",
     }),
     letzterBerater: letzte.berater.name,
     letztesDatum: letzte.erstelltAm.toLocaleDateString("de-DE", {
+      timeZone: BERLIN_TZ,
       day: "2-digit",
       month: "2-digit",
     }),

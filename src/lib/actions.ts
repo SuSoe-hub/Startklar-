@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { heutigesDatumString } from "@/lib/teampool";
 import { getAktuellerMitarbeiter } from "@/lib/auth";
+import { parseBerlinDatetimeLocal, BERLIN_TZ } from "@/lib/zeit";
 import {
   pruefeErsterVorgang,
   pruefeZehnVorgaengeHeute,
@@ -52,6 +53,7 @@ export async function checkDuplicateKunde(
     letzteBeratung: letzterVorgang
       ? {
           datum: letzterVorgang.erstelltAm.toLocaleDateString("de-DE", {
+            timeZone: BERLIN_TZ,
             day: "2-digit",
             month: "2-digit",
           }),
@@ -61,30 +63,51 @@ export async function checkDuplicateKunde(
   };
 }
 
-export type KundeFormState = { error: string | null };
+export type KundeFormState = {
+  error: string | null;
+  vorname: string;
+  nachname: string;
+  typ: string;
+  handynummer: string;
+  email: string;
+};
 
 export async function createKunde(
-  _prevState: KundeFormState,
+  prevState: KundeFormState,
   formData: FormData
 ): Promise<KundeFormState> {
   const vorname = ((formData.get("vorname") as string) ?? "").trim();
   const nachname = ((formData.get("nachname") as string) ?? "").trim();
-  const handynummer =
-    ((formData.get("handynummer") as string) ?? "").trim() || null;
-  const email = ((formData.get("email") as string) ?? "").trim() || null;
+  const handynummerEingabe = ((formData.get("handynummer") as string) ?? "").trim();
+  const emailEingabe = ((formData.get("email") as string) ?? "").trim();
+  const handynummer = handynummerEingabe || null;
+  const email = emailEingabe || null;
   const typ = formData.get("typ") as string;
 
+  // Bei einem Validierungsfehler setzt React/Next das native <form> zurück
+  // (siehe VorgangStatusForm) - deshalb geben wir die eingegebenen Werte
+  // hier immer mit zurück, damit das Formular sie wiederherstellen kann,
+  // statt sie zu verlieren.
+  const eingabe = {
+    vorname,
+    nachname,
+    typ: typ ?? "",
+    handynummer: handynummerEingabe,
+    email: emailEingabe,
+  };
+
   if (!vorname || !nachname) {
-    return { error: "Vorname und Nachname sind Pflichtfelder." };
+    return { error: "Vorname und Nachname sind Pflichtfelder.", ...eingabe };
   }
   if (typ !== "NEUKUNDE" && typ !== "STAMMKUNDE") {
-    return { error: "Bitte Kundentyp auswählen." };
+    return { error: "Bitte Kundentyp auswählen.", ...eingabe };
   }
   // Speicherregel: Name plus mindestens ein Kontaktweg.
   if (!handynummer && !email) {
     return {
       error:
         "Mindestens ein Kontaktweg (Handynummer oder E-Mail) wird benötigt.",
+      ...eingabe,
     };
   }
 
@@ -104,26 +127,36 @@ export async function createKunde(
 
 export async function updateKunde(
   kundeId: string,
-  _prevState: KundeFormState,
+  prevState: KundeFormState,
   formData: FormData
 ): Promise<KundeFormState> {
   const vorname = ((formData.get("vorname") as string) ?? "").trim();
   const nachname = ((formData.get("nachname") as string) ?? "").trim();
-  const handynummer =
-    ((formData.get("handynummer") as string) ?? "").trim() || null;
-  const email = ((formData.get("email") as string) ?? "").trim() || null;
+  const handynummerEingabe = ((formData.get("handynummer") as string) ?? "").trim();
+  const emailEingabe = ((formData.get("email") as string) ?? "").trim();
+  const handynummer = handynummerEingabe || null;
+  const email = emailEingabe || null;
   const typ = formData.get("typ") as string;
 
+  const eingabe = {
+    vorname,
+    nachname,
+    typ: typ ?? "",
+    handynummer: handynummerEingabe,
+    email: emailEingabe,
+  };
+
   if (!vorname || !nachname) {
-    return { error: "Vorname und Nachname sind Pflichtfelder." };
+    return { error: "Vorname und Nachname sind Pflichtfelder.", ...eingabe };
   }
   if (typ !== "NEUKUNDE" && typ !== "STAMMKUNDE") {
-    return { error: "Bitte Kundentyp auswählen." };
+    return { error: "Bitte Kundentyp auswählen.", ...eingabe };
   }
   if (!handynummer && !email) {
     return {
       error:
         "Mindestens ein Kontaktweg (Handynummer oder E-Mail) wird benötigt.",
+      ...eingabe,
     };
   }
 
@@ -164,7 +197,9 @@ export async function createVorgang(
     return { error: "Bitte Kanal auswählen." };
   }
 
-  const wiedervorlage = wiedervorlageRaw ? new Date(wiedervorlageRaw) : null;
+  const wiedervorlage = wiedervorlageRaw
+    ? parseBerlinDatetimeLocal(wiedervorlageRaw)
+    : null;
 
   let zielUrl: string;
   try {
@@ -362,7 +397,7 @@ export async function updateVorgangStatus(
             veranstalterId === "SONSTIGE" ? null : veranstalterId,
           optionVeranstalterSonstige:
             veranstalterId === "SONSTIGE" ? veranstalterSonstige : null,
-          optionsfrist: new Date(fristRaw),
+          optionsfrist: parseBerlinDatetimeLocal(fristRaw),
           optionNotiz: optionNotiz || null,
           buchungsweg: null,
           verlustgrund: null,
@@ -456,7 +491,7 @@ export async function verlaengereOption(
     }
 
     const alteFrist = vorgang.optionsfrist;
-    const neueFrist = new Date(fristRaw);
+    const neueFrist = parseBerlinDatetimeLocal(fristRaw);
 
     await prisma.$transaction([
       prisma.vorgang.update({
@@ -467,8 +502,11 @@ export async function verlaengereOption(
         data: {
           vorgangId,
           text: `Option verlängert: bisherige Frist ${
-            alteFrist?.toLocaleString("de-DE") ?? "unbekannt"
-          }, neue Frist ${neueFrist.toLocaleString("de-DE")}.`,
+            alteFrist?.toLocaleString("de-DE", { timeZone: BERLIN_TZ }) ??
+            "unbekannt"
+          }, neue Frist ${neueFrist.toLocaleString("de-DE", {
+            timeZone: BERLIN_TZ,
+          })}.`,
         },
       }),
     ]);
@@ -590,7 +628,7 @@ export async function updateWiedervorlage(
 
     await prisma.vorgang.update({
       where: { id: vorgangId },
-      data: { wiedervorlage: new Date(raw) },
+      data: { wiedervorlage: parseBerlinDatetimeLocal(raw) },
     });
 
     revalidatePath(`/vorgaenge/${vorgangId}`);
@@ -799,7 +837,15 @@ export async function removeVeranstalter(
   return { error: null };
 }
 
+// Nur der eingeloggte Mitarbeiter darf sich selbst als anwesend markieren -
+// serverseitig geprüft, damit sich niemand über einen fremden Klick oder
+// einen direkten Aufruf für einen Kollegen "eintragen" kann.
 export async function markiereAnwesend(mitarbeiterId: string) {
+  const aktuellerMitarbeiter = await getAktuellerMitarbeiter();
+  if (!aktuellerMitarbeiter || aktuellerMitarbeiter.id !== mitarbeiterId) {
+    return;
+  }
+
   const datum = heutigesDatumString(new Date());
 
   await prisma.anwesenheit.upsert({
@@ -807,6 +853,20 @@ export async function markiereAnwesend(mitarbeiterId: string) {
     update: {},
     create: { datum, mitarbeiterId },
   });
+
+  revalidatePath("/");
+}
+
+// Korrekturmöglichkeit bei Fehlklick.
+export async function entferneAnwesend(mitarbeiterId: string) {
+  const aktuellerMitarbeiter = await getAktuellerMitarbeiter();
+  if (!aktuellerMitarbeiter || aktuellerMitarbeiter.id !== mitarbeiterId) {
+    return;
+  }
+
+  const datum = heutigesDatumString(new Date());
+
+  await prisma.anwesenheit.deleteMany({ where: { datum, mitarbeiterId } });
 
   revalidatePath("/");
 }

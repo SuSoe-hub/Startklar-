@@ -2,7 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
-import { hashePin, pruefePin, erstelleSession, beendeSession } from "@/lib/auth";
+import { pruefePin, erstelleSession, beendeSession } from "@/lib/auth";
 
 export type LoginFormState = { error: string | null };
 
@@ -38,14 +38,14 @@ export async function login(
     };
   }
 
+  // Erstvergabe der PIN passiert nicht mehr im Login selbst (siehe Bugfix:
+  // sonst könnte jede beliebige Person einen unbenutzten Namen "kapern").
+  // Ein Admin muss die PIN vorher unter Einstellungen vergeben haben.
   if (!mitarbeiter.pinHash || !mitarbeiter.pinSalt) {
-    const { hash, salt } = await hashePin(pin);
-    await prisma.mitarbeiter.update({
-      where: { id: mitarbeiterId },
-      data: { pinHash: hash, pinSalt: salt, fehlversuche: 0, gesperrtBis: null },
-    });
-    await erstelleSession(mitarbeiterId);
-    redirect("/");
+    return {
+      error:
+        "Für dich ist noch keine PIN eingerichtet. Bitte eine:n Admin bitten, dir eine PIN zu vergeben.",
+    };
   }
 
   const gueltig = await pruefePin(pin, mitarbeiter.pinHash, mitarbeiter.pinSalt);

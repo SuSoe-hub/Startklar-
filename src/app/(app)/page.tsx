@@ -14,15 +14,13 @@ import {
   stundenBisFrist,
   type OptionsStufe,
 } from "@/lib/optionen";
-import {
-  abwesenheitAktiv,
-  heutigesDatumString,
-  rollCallLaeuftNoch,
-} from "@/lib/teampool";
+import { abwesenheitAktiv, heutigesDatumString } from "@/lib/teampool";
 import WerIstHeuteDa from "@/components/WerIstHeuteDa";
 import UebernahmeForm from "@/components/UebernahmeForm";
 import { begruessung, begruessungsSmiley } from "@/lib/ton";
 import { getEinstellungen } from "@/lib/einstellungen";
+import { getAktuellerMitarbeiter } from "@/lib/auth";
+import { BERLIN_TZ } from "@/lib/zeit";
 
 const OPTIONSART_BADGE_LABEL: Record<string, string> = {
   KUNDENOPTION: "Kundenoption",
@@ -70,33 +68,45 @@ export default async function UebersichtPage() {
     jetzt.getDate()
   );
 
-  const [vorgaenge, alleMitarbeiter, anwesenheitenHeute, einstellungen, kuerzlichGebucht] =
-    await Promise.all([
-      prisma.vorgang.findMany({
-        where: { status: { in: ["ANGEBOT_RAUS", "NACHFASSEN", "OPTION"] } },
-        include: {
-          kunde: true,
-          berater: true,
-          optionVeranstalter: true,
-          notizen: { orderBy: { erstelltAm: "desc" }, take: 1 },
-        },
-      }),
-      prisma.mitarbeiter.findMany({ orderBy: { name: "asc" } }),
-      prisma.anwesenheit.findMany({ where: { datum: heute } }),
-      getEinstellungen(),
-      prisma.vorgang.findMany({
-        where: { status: "GEBUCHT", updatedAt: { gte: heuteStart } },
-        include: { kunde: true, berater: true },
-        orderBy: { updatedAt: "desc" },
-      }),
-    ]);
+  const [
+    vorgaenge,
+    alleMitarbeiter,
+    anwesenheitenHeute,
+    einstellungen,
+    kuerzlichGebucht,
+    aktuellerMitarbeiter,
+  ] = await Promise.all([
+    prisma.vorgang.findMany({
+      where: { status: { in: ["ANGEBOT_RAUS", "NACHFASSEN", "OPTION"] } },
+      include: {
+        kunde: true,
+        berater: true,
+        optionVeranstalter: true,
+        notizen: { orderBy: { erstelltAm: "desc" }, take: 1 },
+      },
+    }),
+    prisma.mitarbeiter.findMany({ orderBy: { name: "asc" } }),
+    prisma.anwesenheit.findMany({ where: { datum: heute } }),
+    getEinstellungen(),
+    prisma.vorgang.findMany({
+      where: { status: "GEBUCHT", updatedAt: { gte: heuteStart } },
+      include: { kunde: true, berater: true },
+      orderBy: { updatedAt: "desc" },
+    }),
+    getAktuellerMitarbeiter(),
+  ]);
 
   const anwesendeIds = new Set(anwesenheitenHeute.map((a) => a.mitarbeiterId));
-  const zeigeRollCall = rollCallLaeuftNoch(jetzt, anwesendeIds.size);
   const umverteilungAktiv = abwesenheitAktiv(anwesendeIds.size);
   const anwesendeMitarbeiter = alleMitarbeiter.filter((m) =>
     anwesendeIds.has(m.id)
   );
+  // Jede Person markiert sich einzeln als anwesend - unabhängig davon, ob
+  // Kolleg:innen das schon getan haben (vorher verschwand die ganze Abfrage
+  // für alle, sobald irgendjemand geklickt hatte).
+  const bereitsAnwesend = aktuellerMitarbeiter
+    ? anwesendeIds.has(aktuellerMitarbeiter.id)
+    : false;
 
   const eintraege = vorgaenge
     .map((v) => {
@@ -212,6 +222,7 @@ export default async function UebersichtPage() {
               const veranstalterName =
                 v.optionVeranstalter?.code ?? v.optionVeranstalterSonstige ?? "";
               const fristZeit = v.optionsfrist?.toLocaleTimeString("de-DE", {
+                timeZone: BERLIN_TZ,
                 hour: "2-digit",
                 minute: "2-digit",
               });
@@ -271,7 +282,12 @@ export default async function UebersichtPage() {
         </div>
       )}
 
-      {zeigeRollCall && <WerIstHeuteDa mitarbeiter={alleMitarbeiter} />}
+      {aktuellerMitarbeiter && (
+        <WerIstHeuteDa
+          aktuellerMitarbeiter={aktuellerMitarbeiter}
+          bereitsAnwesend={bereitsAnwesend}
+        />
+      )}
 
       {poolEintraege.length > 0 && (
         <div>
@@ -347,6 +363,7 @@ export default async function UebersichtPage() {
                     ? ` · Optionsfrist: ${v.optionsfrist.toLocaleString(
                         "de-DE",
                         {
+                          timeZone: BERLIN_TZ,
                           day: "2-digit",
                           month: "2-digit",
                           hour: "2-digit",
@@ -357,6 +374,7 @@ export default async function UebersichtPage() {
                       ` · Wiedervorlage: ${v.wiedervorlage.toLocaleString(
                         "de-DE",
                         {
+                          timeZone: BERLIN_TZ,
                           day: "2-digit",
                           month: "2-digit",
                           hour: "2-digit",

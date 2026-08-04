@@ -49,6 +49,9 @@ model Mitarbeiter {
   pinSalt       String?
   fehlversuche  Int           @default(0)
   gesperrtBis   DateTime?
+  // Nur ein Admin darf die (Erst-)PIN anderer Mitarbeiter vergeben/zurücksetzen
+  // (siehe Bugfix: Erstvergabe war zuvor für jeden frei möglich).
+  istAdmin      Boolean       @default(false)
   vorgaenge     Vorgang[]
   anwesenheiten Anwesenheit[]
   sessions      Session[]

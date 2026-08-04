@@ -1,44 +1,58 @@
 "use client";
 
-import { useState, useTransition } from "react";
-import { markiereAnwesend } from "@/lib/actions";
+import { useTransition } from "react";
+import { markiereAnwesend, entferneAnwesend } from "@/lib/actions";
 
 export default function WerIstHeuteDa({
-  mitarbeiter,
+  aktuellerMitarbeiter,
+  bereitsAnwesend,
 }: {
-  mitarbeiter: { id: string; name: string }[];
+  aktuellerMitarbeiter: { id: string; name: string };
+  bereitsAnwesend: boolean;
 }) {
-  const [, startTransition] = useTransition();
-  const [angetippt, setAngetippt] = useState<Set<string>>(new Set());
+  const [pending, startTransition] = useTransition();
 
-  function antippen(id: string) {
-    setAngetippt((s) => new Set(s).add(id));
+  function markieren() {
     startTransition(() => {
-      markiereAnwesend(id);
+      markiereAnwesend(aktuellerMitarbeiter.id);
     });
   }
 
-  return (
-    <div className="card border-l-4 border-l-[var(--color-primary-400)] bg-[var(--color-primary-50)]/60 p-4">
-      <p className="text-sm font-semibold mb-2">Wer ist heute da?</p>
-      <div className="flex flex-wrap gap-2">
-        {mitarbeiter.map((m) => (
-          <button
-            key={m.id}
-            type="button"
-            onClick={() => antippen(m.id)}
-            disabled={angetippt.has(m.id)}
-            className={`rounded-full border px-3 py-1 text-sm transition-colors ${
-              angetippt.has(m.id)
-                ? "bg-green-100 border-green-400 text-green-700"
-                : "bg-white border-[var(--color-border)] hover:bg-[var(--color-primary-50)]"
-            }`}
-          >
-            {m.name}
-            {angetippt.has(m.id) ? " ✓" : ""}
-          </button>
-        ))}
+  function zuruecksetzen() {
+    startTransition(() => {
+      entferneAnwesend(aktuellerMitarbeiter.id);
+    });
+  }
+
+  if (bereitsAnwesend) {
+    return (
+      <div className="card border-l-4 border-l-green-400 bg-green-50/60 p-4 flex items-center justify-between gap-3">
+        <p className="text-sm font-semibold text-green-700">
+          ✓ {aktuellerMitarbeiter.name} ist heute da.
+        </p>
+        <button
+          type="button"
+          onClick={zuruecksetzen}
+          disabled={pending}
+          className="text-xs link shrink-0"
+        >
+          Doch nicht? Rückgängig machen
+        </button>
       </div>
+    );
+  }
+
+  return (
+    <div className="card border-l-4 border-l-[var(--color-primary-400)] bg-[var(--color-primary-50)]/60 p-4 flex items-center justify-between gap-3">
+      <p className="text-sm font-semibold">Bist du heute da?</p>
+      <button
+        type="button"
+        onClick={markieren}
+        disabled={pending}
+        className="btn-primary shrink-0"
+      >
+        {pending ? "…" : `Ja, ${aktuellerMitarbeiter.name} ist da`}
+      </button>
     </div>
   );
 }

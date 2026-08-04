@@ -56,6 +56,29 @@ function PinSchritt({
   const [state, formAction, pending] = useActionState(action, initialState);
   const [pin, setPin] = useState("");
 
+  if (!mitarbeiter.hatPin) {
+    return (
+      <div className="flex flex-col gap-4">
+        <button
+          type="button"
+          onClick={onZurueck}
+          className="text-sm link self-start"
+        >
+          ← Nicht {mitarbeiter.name}?
+        </button>
+        <div className="card p-3 text-sm flex flex-col gap-1">
+          <p className="font-semibold">
+            Für {mitarbeiter.name} ist noch keine PIN eingerichtet.
+          </p>
+          <p className="text-[var(--color-muted)]">
+            Bitte eine:n Admin bitten, unter Einstellungen eine PIN zu
+            vergeben.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   // Chrome/Edge versuchen bei einem <input type="password"> gerne gespeicherte
   // Zugangsdaten einzufügen, was hier zu falschen/zusätzlichen Zeichen führen
   // kann. autoComplete="one-time-code" signalisiert dem Browser, dass es sich
@@ -76,9 +99,7 @@ function PinSchritt({
       </button>
       <div className="flex flex-col gap-1">
         <label htmlFor="pin" className="text-sm font-semibold">
-          {mitarbeiter.hatPin
-            ? `PIN von ${mitarbeiter.name}`
-            : `Neue PIN für ${mitarbeiter.name} festlegen`}
+          PIN von {mitarbeiter.name}
         </label>
         <input
           id="pin"
@@ -94,11 +115,6 @@ function PinSchritt({
           onChange={handlePinChange}
           className="input text-center text-lg tracking-[0.5em]"
         />
-        {!mitarbeiter.hatPin && (
-          <p className="text-xs text-[var(--color-muted)]">
-            4 Ziffern, merk sie dir gut – das ist ab jetzt deine PIN.
-          </p>
-        )}
       </div>
       {state.error && (
         <p className="text-sm text-red-600" role="alert">
@@ -110,11 +126,7 @@ function PinSchritt({
         disabled={pending || pin.length !== 4}
         className="btn-primary"
       >
-        {pending
-          ? "…"
-          : mitarbeiter.hatPin
-          ? "Einloggen"
-          : "PIN festlegen & einloggen"}
+        {pending ? "…" : "Einloggen"}
       </button>
     </form>
   );
