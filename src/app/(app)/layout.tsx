@@ -63,6 +63,9 @@ export default async function AppLayout({
         <Link href="/einstellungen" className="text-sm link">
           Einstellungen
         </Link>
+        <Link href="/rangliste" className="text-sm link">
+          Rangliste
+        </Link>
         <form action={logout}>
           <button type="submit" className="text-sm link">
             Abmelden
