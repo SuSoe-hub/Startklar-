@@ -45,7 +45,7 @@ export default async function AppLayout({
         </div>
       </aside>
 
-      <div className="md:hidden fixed top-0 inset-x-0 z-10 flex items-center gap-3 bg-white border-b border-[var(--color-border)] px-4 py-3">
+      <div className="md:hidden sticky top-0 z-10 flex flex-wrap items-center gap-3 bg-white border-b border-[var(--color-border)] px-4 py-3">
         <Image
           src="/logo.png"
           alt="TCE Reisen"
@@ -57,23 +57,23 @@ export default async function AppLayout({
         <span className="font-extrabold text-[var(--color-primary-700)]">
           Startklar
         </span>
-        <Link href="/kunden" className="ml-auto text-sm link">
+        <Link href="/kunden" className="text-sm link whitespace-nowrap">
           Kunden
         </Link>
-        <Link href="/einstellungen" className="text-sm link">
+        <Link href="/einstellungen" className="text-sm link whitespace-nowrap">
           Einstellungen
         </Link>
-        <Link href="/rangliste" className="text-sm link">
+        <Link href="/rangliste" className="text-sm link whitespace-nowrap">
           Rangliste
         </Link>
-        <form action={logout}>
-          <button type="submit" className="text-sm link">
+        <form action={logout} className="ml-auto shrink-0">
+          <button type="submit" className="text-sm link whitespace-nowrap">
             Abmelden
           </button>
         </form>
       </div>
 
-      <div className="flex-1 min-w-0 pt-14 md:pt-0">{children}</div>
+      <div className="flex-1 min-w-0 md:pt-0">{children}</div>
     </div>
   );
 }
