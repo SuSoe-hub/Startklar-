@@ -108,6 +108,7 @@ model Vorgang {
   wiedervorlage  DateTime?
   buchungsweg    Buchungsweg?
   verlustgrund   String?
+  angebotLink    String?
   archiviert     Boolean       @default(false)
   notizen        Notiz[]
 

@@ -607,6 +607,31 @@ export async function loeseOptionAuf(
   }
 }
 
+export type AngebotLinkFormState = { error: string | null };
+
+export async function updateAngebotLink(
+  vorgangId: string,
+  _prevState: AngebotLinkFormState,
+  formData: FormData
+): Promise<AngebotLinkFormState> {
+  const raw = ((formData.get("angebotLink") as string) ?? "").trim();
+  if (raw && !/^https?:\/\//i.test(raw)) {
+    return { error: "Bitte einen vollständigen Link (mit http:// oder https://) eingeben." };
+  }
+
+  try {
+    await prisma.vorgang.update({
+      where: { id: vorgangId },
+      data: { angebotLink: raw || null },
+    });
+    revalidatePath(`/vorgaenge/${vorgangId}`);
+    return { error: null };
+  } catch (fehler) {
+    console.error("updateAngebotLink fehlgeschlagen:", fehler);
+    return { error: "Speichern fehlgeschlagen, bitte erneut versuchen." };
+  }
+}
+
 export type WiedervorlageFormState = {
   error: string | null;
   anerkennung: string | null;

@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import VorgangStatusForm from "@/components/VorgangStatusForm";
+import AngebotLinkForm from "@/components/AngebotLinkForm";
 import OptionAufloesenPanel from "@/components/OptionAufloesenPanel";
 import WiedervorlageForm from "@/components/WiedervorlageForm";
 import NotizForm from "@/components/NotizForm";
@@ -135,6 +136,11 @@ export default async function VorgangDetailPage({
             Verlustgrund: {vorgang.verlustgrund}
           </p>
         )}
+      </section>
+
+      <section className="card p-4">
+        <h2 className="font-semibold mb-2">Angebotslink</h2>
+        <AngebotLinkForm vorgangId={vorgang.id} angebotLink={vorgang.angebotLink} />
       </section>
 
       {vorgang.status !== "GEBUCHT" && vorgang.status !== "VERLOREN" && (
