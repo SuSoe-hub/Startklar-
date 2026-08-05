@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
+import KundenListe from "@/components/KundenListe";
 
 export default async function KundenPage() {
   const kunden = await prisma.kunde.findMany({
@@ -21,41 +22,7 @@ export default async function KundenPage() {
         </Link>
       </div>
 
-      {sortiert.length === 0 && (
-        <p className="text-sm text-[var(--color-muted)]">
-          Noch keine Kunden angelegt.
-        </p>
-      )}
-
-      <ul className="flex flex-col gap-2">
-        {sortiert.map((k) => {
-          const unvollstaendig = !(k.handynummer && k.email);
-          return (
-            <li key={k.id}>
-              <Link
-                href={`/kunden/${k.id}`}
-                className={`card block p-4 hover:shadow-md transition-shadow ${
-                  unvollstaendig
-                    ? "border-l-4 border-l-orange-500 bg-orange-50/50"
-                    : ""
-                }`}
-              >
-                <div className="font-semibold">
-                  {k.vorname} {k.nachname}
-                </div>
-                <div className="text-sm text-[var(--color-muted)] mt-0.5">
-                  {k.handynummer ?? "—"} · {k.email ?? "—"}
-                </div>
-                {unvollstaendig && (
-                  <div className="text-xs text-orange-700 mt-1 font-semibold">
-                    Kontaktdaten unvollständig
-                  </div>
-                )}
-              </Link>
-            </li>
-          );
-        })}
-      </ul>
+      <KundenListe kunden={sortiert} />
     </main>
   );
 }
