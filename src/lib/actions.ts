@@ -9,6 +9,7 @@ import { parseBerlinDatetimeLocal, BERLIN_TZ } from "@/lib/zeit";
 import {
   pruefeErsterVorgang,
   pruefeZehnVorgaengeHeute,
+  pruefeFuenfzigVorgaenge,
   pruefeAlleWiedervorlagenErledigt,
   pruefeOptionRechtzeitig,
   pruefeUebernommen,
@@ -219,7 +220,8 @@ export async function createVorgang(
     const jetzt = new Date();
     const anerkennung =
       (await pruefeErsterVorgang(beraterId, jetzt)) ??
-      (await pruefeZehnVorgaengeHeute(beraterId, jetzt));
+      (await pruefeZehnVorgaengeHeute(beraterId, jetzt)) ??
+      (await pruefeFuenfzigVorgaenge(beraterId, jetzt));
 
     zielUrl = `/vorgaenge/${vorgang.id}${
       anerkennung ? `?anerkennung=${encodeURIComponent(anerkennung)}` : ""

@@ -14,7 +14,8 @@ type Anlass =
   | "ALLE_WIEDERVORLAGEN_ERLEDIGT"
   | "OPTION_RECHTZEITIG"
   | "UEBERNOMMEN"
-  | "ERSTER_VORGANG";
+  | "ERSTER_VORGANG"
+  | "FUENFZIG_GESAMT";
 
 const NACHRICHTEN: Record<Anlass, string[]> = {
   ZEHN_HEUTE: [
@@ -34,6 +35,7 @@ const NACHRICHTEN: Record<Anlass, string[]> = {
     "Gut, dass du übernommen hast.",
   ],
   ERSTER_VORGANG: ["Der erste Eintrag ist drin. Los geht's!"],
+  FUENFZIG_GESAMT: ["50 Vorgänge erfasst – starke Bilanz!"],
 };
 
 function zufaelligeNachricht(anlass: Anlass) {
@@ -78,6 +80,15 @@ export async function pruefeErsterVorgang(mitarbeiterId: string, jetzt: Date) {
       where: { beraterId: mitarbeiterId },
     });
     return anzahl === 1;
+  });
+}
+
+export async function pruefeFuenfzigVorgaenge(mitarbeiterId: string, jetzt: Date) {
+  return pruefeUndMarkiere(mitarbeiterId, jetzt, "FUENFZIG_GESAMT", async () => {
+    const anzahl = await prisma.vorgang.count({
+      where: { beraterId: mitarbeiterId },
+    });
+    return anzahl === 50;
   });
 }
 

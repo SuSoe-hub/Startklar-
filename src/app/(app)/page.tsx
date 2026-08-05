@@ -15,8 +15,10 @@ import {
   type OptionsStufe,
 } from "@/lib/optionen";
 import { abwesenheitAktiv, heutigesDatumString } from "@/lib/teampool";
+import { berechneRangliste } from "@/lib/rangliste";
 import WerIstHeuteDa from "@/components/WerIstHeuteDa";
 import UebernahmeForm from "@/components/UebernahmeForm";
+import Rangliste from "@/components/Rangliste";
 import { begruessung, begruessungsSmiley } from "@/lib/ton";
 import { getEinstellungen } from "@/lib/einstellungen";
 import { getAktuellerMitarbeiter } from "@/lib/auth";
@@ -75,6 +77,7 @@ export default async function UebersichtPage() {
     einstellungen,
     kuerzlichGebucht,
     aktuellerMitarbeiter,
+    rangliste,
   ] = await Promise.all([
     prisma.vorgang.findMany({
       where: { status: { in: ["ANGEBOT_RAUS", "NACHFASSEN", "OPTION"] } },
@@ -94,6 +97,7 @@ export default async function UebersichtPage() {
       orderBy: { updatedAt: "desc" },
     }),
     getAktuellerMitarbeiter(),
+    berechneRangliste(jetzt),
   ]);
 
   const anwesendeIds = new Set(anwesenheitenHeute.map((a) => a.mitarbeiterId));
@@ -199,6 +203,12 @@ export default async function UebersichtPage() {
               } warten heute auf dich.`}
         </p>
       </div>
+
+      <Rangliste
+        eintraege={rangliste}
+        eigeneId={aktuellerMitarbeiter?.id ?? null}
+        smileysAktiviert={einstellungen.smileysAktiviert}
+      />
 
       {kuerzlichGebucht.length > 0 && (
         <div className="card border-l-4 border-l-green-500 bg-green-50/50 p-4 text-sm flex flex-col gap-1">
