@@ -40,7 +40,6 @@ export default function KundenListe({ kunden }: { kunden: Kunde[] }) {
       <a
         href="https://office.go-suite.com/argus"
         target="argus-backoffice"
-        rel="noopener noreferrer"
         className="link text-sm inline-block mb-4"
       >
         Hat der Kunde schon einmal gebucht? In Argus nachschauen →
