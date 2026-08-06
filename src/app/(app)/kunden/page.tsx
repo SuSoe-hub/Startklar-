@@ -1,13 +1,27 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import KundenListe from "@/components/KundenListe";
+import { kundenBadge, kundeIstErledigt } from "@/lib/kundenstatus";
 
 export default async function KundenPage() {
   const kunden = await prisma.kunde.findMany({
     orderBy: { createdAt: "desc" },
+    include: {
+      vorgaenge: {
+        select: { status: true, wiedervorlage: true, optionsfrist: true, updatedAt: true },
+      },
+    },
   });
 
-  const sortiert = [...kunden].sort((a, b) => {
+  const jetzt = new Date();
+
+  const angereichert = kunden.map(({ vorgaenge, ...k }) => ({
+    ...k,
+    istErledigt: kundeIstErledigt(vorgaenge),
+    badge: kundenBadge(vorgaenge, jetzt),
+  }));
+
+  const sortiert = [...angereichert].sort((a, b) => {
     const aUnvollstaendig = !(a.handynummer && a.email) ? 1 : 0;
     const bUnvollstaendig = !(b.handynummer && b.email) ? 1 : 0;
     return bUnvollstaendig - aUnvollstaendig;

@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import CopyButton from "@/components/CopyButton";
 import { enthaeltUmlaut } from "@/lib/umlaute";
+import type { KundenBadge, KundenBadgeFarbe } from "@/lib/kundenstatus";
 
 type Kunde = {
   id: string;
@@ -11,15 +12,34 @@ type Kunde = {
   nachname: string;
   handynummer: string | null;
   email: string | null;
+  istErledigt: boolean;
+  badge: KundenBadge;
+};
+
+const BADGE_STYLE: Record<KundenBadgeFarbe, string> = {
+  rot: "text-red-700 bg-red-100",
+  gelb: "text-amber-700 bg-amber-100",
+  gruen: "text-green-700 bg-green-100",
+  gebucht: "text-teal-700 bg-teal-100",
+  verloren: "text-gray-600 bg-gray-100",
 };
 
 export default function KundenListe({ kunden }: { kunden: Kunde[] }) {
   const [suche, setSuche] = useState("");
+  const [tab, setTab] = useState<"aktiv" | "erledigt">("aktiv");
+
+  const nachTab = useMemo(
+    () => kunden.filter((k) => (tab === "aktiv" ? !k.istErledigt : k.istErledigt)),
+    [kunden, tab]
+  );
+
+  const aktivAnzahl = useMemo(() => kunden.filter((k) => !k.istErledigt).length, [kunden]);
+  const erledigtAnzahl = kunden.length - aktivAnzahl;
 
   const gefiltert = useMemo(() => {
     const begriff = suche.trim().toLowerCase();
-    if (!begriff) return kunden;
-    return kunden.filter((k) => {
+    if (!begriff) return nachTab;
+    return nachTab.filter((k) => {
       const name = `${k.vorname} ${k.nachname}`.toLowerCase();
       return (
         name.includes(begriff) ||
@@ -27,10 +47,27 @@ export default function KundenListe({ kunden }: { kunden: Kunde[] }) {
         (k.email ?? "").toLowerCase().includes(begriff)
       );
     });
-  }, [kunden, suche]);
+  }, [nachTab, suche]);
 
   return (
     <>
+      <div className="flex gap-2 mb-4">
+        <button
+          type="button"
+          onClick={() => setTab("aktiv")}
+          className={tab === "aktiv" ? "btn-primary" : "btn-secondary"}
+        >
+          Aktiv ({aktivAnzahl})
+        </button>
+        <button
+          type="button"
+          onClick={() => setTab("erledigt")}
+          className={tab === "erledigt" ? "btn-primary" : "btn-secondary"}
+        >
+          Erledigt ({erledigtAnzahl})
+        </button>
+      </div>
+
       <div className="flex items-center gap-2 mb-1">
         <div className="relative flex-1">
           <input
@@ -74,7 +111,9 @@ export default function KundenListe({ kunden }: { kunden: Kunde[] }) {
         <p className="text-sm text-[var(--color-muted)]">
           {suche
             ? "Kein Kunde gefunden."
-            : "Noch keine Kunden angelegt."}
+            : tab === "aktiv"
+              ? "Keine aktiven Kunden."
+              : "Noch keine erledigten Kunden."}
         </p>
       )}
 
@@ -91,8 +130,17 @@ export default function KundenListe({ kunden }: { kunden: Kunde[] }) {
                     : ""
                 }`}
               >
-                <div className="font-semibold">
-                  {k.vorname} {k.nachname}
+                <div className="flex items-center justify-between gap-2">
+                  <div className="font-semibold">
+                    {k.vorname} {k.nachname}
+                  </div>
+                  {k.badge && (
+                    <span
+                      className={`text-xs px-2 py-0.5 rounded-full font-semibold whitespace-nowrap ${BADGE_STYLE[k.badge.farbe]}`}
+                    >
+                      {k.badge.label}
+                    </span>
+                  )}
                 </div>
                 <div className="text-sm text-[var(--color-muted)] mt-0.5">
                   {k.handynummer ?? "—"} · {k.email ?? "—"}
