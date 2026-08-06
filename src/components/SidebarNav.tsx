@@ -7,7 +7,7 @@ const LINKS = [
   { href: "/", label: "Startseite" },
   { href: "/kunden", label: "Kunden" },
   { href: "/einstellungen", label: "Einstellungen" },
-  { href: "/rangliste", label: "Rangliste" },
+  { href: "/rangliste", label: "Statistik" },
 ];
 
 export default function SidebarNav() {

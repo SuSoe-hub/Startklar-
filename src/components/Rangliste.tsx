@@ -16,7 +16,7 @@ export default function Rangliste({
   return (
     <div className="card p-4 flex flex-col gap-2">
       <h2 className="text-sm font-semibold">
-        Vorgänge im {monatsName} – Rangliste
+        Vorgänge im {monatsName}
       </h2>
       <ul className="flex flex-col gap-1.5">
         {eintraege.map((e, i) => (
