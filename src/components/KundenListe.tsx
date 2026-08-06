@@ -34,8 +34,17 @@ export default function KundenListe({ kunden }: { kunden: Kunde[] }) {
         value={suche}
         onChange={(e) => setSuche(e.target.value)}
         placeholder="Name, Handynummer oder E-Mail..."
-        className="input w-full mb-4"
+        className="input w-full mb-2"
       />
+
+      <a
+        href="https://office.go-suite.com/argus"
+        target="_blank"
+        rel="noopener noreferrer"
+        className="link text-sm inline-block mb-4"
+      >
+        Hat der Kunde schon einmal gebucht? In Argus nachschauen →
+      </a>
 
       {gefiltert.length === 0 && (
         <p className="text-sm text-[var(--color-muted)]">
