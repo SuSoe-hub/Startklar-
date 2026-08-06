@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
+import CopyButton from "@/components/CopyButton";
 
 type Kunde = {
   id: string;
@@ -66,11 +67,23 @@ export default function KundenListe({ kunden }: { kunden: Kunde[] }) {
                     : ""
                 }`}
               >
-                <div className="font-semibold">
-                  {k.vorname} {k.nachname}
+                <div className="flex items-center gap-2">
+                  <div className="font-semibold">
+                    {k.vorname} {k.nachname}
+                  </div>
+                  <CopyButton
+                    value={`${k.vorname} ${k.nachname}`}
+                    label="Name"
+                  />
                 </div>
-                <div className="text-sm text-[var(--color-muted)] mt-0.5">
-                  {k.handynummer ?? "—"} · {k.email ?? "—"}
+                <div className="text-sm text-[var(--color-muted)] mt-0.5 flex items-center gap-2 flex-wrap">
+                  <span>{k.handynummer ?? "—"}</span>
+                  {k.handynummer && (
+                    <CopyButton value={k.handynummer} label="Handynummer" />
+                  )}
+                  <span>·</span>
+                  <span>{k.email ?? "—"}</span>
+                  {k.email && <CopyButton value={k.email} label="E-Mail" />}
                 </div>
                 {unvollstaendig && (
                   <div className="text-xs text-orange-700 mt-1 font-semibold">

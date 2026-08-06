@@ -5,6 +5,7 @@ import { kundenStatistik } from "@/lib/kundenkarte";
 import { findeMoeglicheDubletten } from "@/lib/dubletten";
 import MergeKundeButton from "@/components/MergeKundeButton";
 import DeleteKundeButton from "@/components/DeleteKundeButton";
+import CopyButton from "@/components/CopyButton";
 import { BERLIN_TZ } from "@/lib/zeit";
 
 const STATUS_LABEL: Record<string, string> = {
@@ -46,9 +47,12 @@ export default async function KundeDetailPage({
         ← Kunden
       </Link>
       <div className="flex items-center justify-between mt-1 mb-2">
-        <h1 className="text-xl font-bold tracking-tight">
-          {kunde.vorname} {kunde.nachname}
-        </h1>
+        <div className="flex items-center gap-2">
+          <h1 className="text-xl font-bold tracking-tight">
+            {kunde.vorname} {kunde.nachname}
+          </h1>
+          <CopyButton value={`${kunde.vorname} ${kunde.nachname}`} label="Name" />
+        </div>
         <Link href={`/kunden/${kunde.id}/bearbeiten`} className="text-sm link">
           Bearbeiten
         </Link>
@@ -90,13 +94,17 @@ export default async function KundeDetailPage({
             {kunde.typ === "NEUKUNDE" ? "Neukunde" : "Stammkunde"}
           </dd>
         </div>
-        <div>
+        <div className="flex items-center gap-2">
           <dt className="inline text-[var(--color-muted)]">Handynummer: </dt>
           <dd className="inline">{kunde.handynummer ?? "—"}</dd>
+          {kunde.handynummer && (
+            <CopyButton value={kunde.handynummer} label="Handynummer" />
+          )}
         </div>
-        <div>
+        <div className="flex items-center gap-2">
           <dt className="inline text-[var(--color-muted)]">E-Mail: </dt>
           <dd className="inline">{kunde.email ?? "—"}</dd>
+          {kunde.email && <CopyButton value={kunde.email} label="E-Mail" />}
         </div>
       </dl>
 
