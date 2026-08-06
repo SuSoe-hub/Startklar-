@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import CopyButton from "@/components/CopyButton";
+import { enthaeltUmlaut } from "@/lib/umlaute";
 
 type Kunde = {
   id: string;
@@ -54,10 +55,12 @@ export default function KundenListe({ kunden }: { kunden: Kunde[] }) {
         {suche.trim() && <CopyButton value={suche.trim()} label="Sucheingabe" />}
       </div>
 
-      <p className="text-xs text-[var(--color-muted)] mb-2">
-        Tipp: Umlaute ausschreiben – ü → ue, ä → ae, ö → oe (sonst findet
-        Argus den Kunden beim Einfügen nicht).
-      </p>
+      {enthaeltUmlaut(suche) && (
+        <p className="text-xs text-orange-700 mb-2">
+          Tipp: Für Argus lieber ausschreiben – ü → ue, ä → ae, ö → oe, ß →
+          ss (sonst findet Argus den Kunden beim Einfügen nicht).
+        </p>
+      )}
 
       <a
         href="https://office.go-suite.com/argus"

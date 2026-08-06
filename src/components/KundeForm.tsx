@@ -8,6 +8,7 @@ import {
   type DuplicateHinweis,
   type KundeFormState,
 } from "@/lib/actions";
+import { enthaeltUmlaut } from "@/lib/umlaute";
 
 const initialState: KundeFormState = {
   error: null,
@@ -26,6 +27,7 @@ export default function KundeForm() {
   const [handynummer, setHandynummer] = useState("");
   const [email, setEmail] = useState("");
   const [hinweis, setHinweis] = useState<DuplicateHinweis>(null);
+  const [umlautImNamen, setUmlautImNamen] = useState(false);
 
   const vornameRef = useRef<HTMLInputElement>(null);
   const nachnameRef = useRef<HTMLInputElement>(null);
@@ -41,11 +43,21 @@ export default function KundeForm() {
     if (typRef.current) typRef.current.value = state.typ;
     setHandynummer(state.handynummer);
     setEmail(state.email);
+    setUmlautImNamen(
+      enthaeltUmlaut(state.vorname) || enthaeltUmlaut(state.nachname)
+    );
   }, [state]);
 
   async function pruefeDublette(handy: string, mail: string) {
     const result = await checkDuplicateKunde(handy, mail);
     setHinweis(result);
+  }
+
+  function pruefeUmlaut() {
+    setUmlautImNamen(
+      enthaeltUmlaut(vornameRef.current?.value ?? "") ||
+        enthaeltUmlaut(nachnameRef.current?.value ?? "")
+    );
   }
 
   return (
@@ -59,6 +71,7 @@ export default function KundeForm() {
           name="vorname"
           ref={vornameRef}
           defaultValue={state.vorname}
+          onChange={pruefeUmlaut}
           required
           className="input"
         />
@@ -73,10 +86,18 @@ export default function KundeForm() {
           name="nachname"
           ref={nachnameRef}
           defaultValue={state.nachname}
+          onChange={pruefeUmlaut}
           required
           className="input"
         />
       </div>
+
+      {umlautImNamen && (
+        <p className="text-xs text-orange-700">
+          Tipp: Für Argus lieber ausschreiben – ü → ue, ä → ae, ö → oe, ß →
+          ss (sonst findet Argus den Kunden beim Einfügen nicht).
+        </p>
+      )}
 
       <div className="flex flex-col gap-1">
         <label htmlFor="typ" className="text-sm font-semibold">
