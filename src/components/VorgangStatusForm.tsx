@@ -47,6 +47,23 @@ export default function VorgangStatusForm({
   const vorgangsnummerRef = useRef<HTMLInputElement>(null);
   const verlustgrundRef = useRef<HTMLInputElement>(null);
 
+  // Eine Anerkennungs-Meldung (z.B. "Alles abgearbeitet") ist ein optionaler
+  // Bonus, kein Ersatz für die eigentliche Speicherbestätigung – ohne
+  // Anerkennung gab es sonst gar keine Rückmeldung, dass der Status
+  // tatsächlich gespeichert wurde.
+  const istErsterRender = useRef(true);
+  const [zeigeGespeichert, setZeigeGespeichert] = useState(false);
+  useEffect(() => {
+    if (istErsterRender.current) {
+      istErsterRender.current = false;
+      return;
+    }
+    if (state.error) return;
+    setZeigeGespeichert(true);
+    const timer = setTimeout(() => setZeigeGespeichert(false), 3000);
+    return () => clearTimeout(timer);
+  }, [state]);
+
   // Hält die Auswahl mit dem persistierten Wert synchron, wenn er sich von
   // außen ändert (z. B. ein anderer Tab hat den Status geändert).
   useEffect(() => {
@@ -260,6 +277,12 @@ export default function VorgangStatusForm({
       {state.ermutigung && (
         <p className="text-sm text-[var(--color-muted)] italic">
           {state.ermutigung}
+        </p>
+      )}
+
+      {zeigeGespeichert && !state.error && (
+        <p className="text-sm text-teal-800 bg-teal-50 border border-teal-200 rounded-lg px-3 py-2">
+          Status gespeichert.
         </p>
       )}
 

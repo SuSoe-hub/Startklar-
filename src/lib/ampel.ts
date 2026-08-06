@@ -51,17 +51,27 @@ export function ampelFarbe({
   optionsfrist?: Date | null;
   jetzt: Date;
 }): AmpelFarbe {
-  if (kontaktUnvollstaendig) return "orange";
-
   const kandidaten: { termin: Date; optionsRegel: boolean }[] = [];
   if (wiedervorlage) kandidaten.push({ termin: wiedervorlage, optionsRegel: false });
   if (optionsfrist) kandidaten.push({ termin: optionsfrist, optionsRegel: true });
-  if (kandidaten.length === 0) return "keine";
 
   // Der frühere der beiden Termine bestimmt die Farbe (siehe
   // Startklar_Erweiterung_Optionen.md, Abschnitt 2 "Optionsfrist ist ein
   // eigenes Feld").
   kandidaten.sort((a, b) => a.termin.getTime() - b.termin.getTime());
+
+  if (kandidaten.length > 0) {
+    const { termin, optionsRegel } = kandidaten[0];
+    const terminFarbe = faelligkeitsFarbe(termin, jetzt, optionsRegel);
+    // Ein heute fälliger/überfälliger Termin ist dringender als fehlende
+    // Kontaktdaten: sonst würde ein Kunde mit beidem als "nur orange"
+    // erscheinen, aus der Fällig-Zählung herausfallen und übersehen werden.
+    if (terminFarbe === "rot" || terminFarbe === "gelb") return terminFarbe;
+  }
+
+  if (kontaktUnvollstaendig) return "orange";
+  if (kandidaten.length === 0) return "keine";
+
   const { termin, optionsRegel } = kandidaten[0];
   return faelligkeitsFarbe(termin, jetzt, optionsRegel);
 }

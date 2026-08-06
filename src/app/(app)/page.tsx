@@ -194,9 +194,9 @@ export default async function UebersichtPage() {
             ` ${begruessungsSmiley(jetzt)}`}
           {heuteOderUeberfaellig === 0
             ? " – heute ist nichts fällig."
-            : ` – ${heuteOderUeberfaellig} Kunde${
-                heuteOderUeberfaellig === 1 ? "" : "n"
-              } warten heute auf dich.`}
+            : heuteOderUeberfaellig === 1
+              ? " – 1 Kunde wartet heute auf dich."
+              : ` – ${heuteOderUeberfaellig} Kunden warten heute auf dich.`}
         </p>
       </div>
 
