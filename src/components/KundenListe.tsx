@@ -30,16 +30,34 @@ export default function KundenListe({ kunden }: { kunden: Kunde[] }) {
 
   return (
     <>
-      <div className="flex items-center gap-2 mb-2">
-        <input
-          type="text"
-          value={suche}
-          onChange={(e) => setSuche(e.target.value)}
-          placeholder="Name, Handynummer oder E-Mail..."
-          className="input w-full"
-        />
+      <div className="flex items-center gap-2 mb-1">
+        <div className="relative flex-1">
+          <input
+            type="text"
+            value={suche}
+            onChange={(e) => setSuche(e.target.value)}
+            placeholder="Name, Handynummer oder E-Mail..."
+            className="input w-full pr-8"
+          />
+          {suche && (
+            <button
+              type="button"
+              onClick={() => setSuche("")}
+              aria-label="Suche leeren"
+              title="Suche leeren"
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[var(--color-muted)] hover:text-[var(--color-primary-600)] text-lg leading-none"
+            >
+              ×
+            </button>
+          )}
+        </div>
         {suche.trim() && <CopyButton value={suche.trim()} label="Sucheingabe" />}
       </div>
+
+      <p className="text-xs text-[var(--color-muted)] mb-2">
+        Tipp: Umlaute ausschreiben – ü → ue, ä → ae, ö → oe (sonst findet
+        Argus den Kunden beim Einfügen nicht).
+      </p>
 
       <a
         href="https://office.go-suite.com/argus"
