@@ -1,15 +1,21 @@
-import { berechneRangliste } from "@/lib/rangliste";
+import {
+  berechneRangliste,
+  berechneUeberraschungsFortschritt,
+} from "@/lib/rangliste";
 import { getEinstellungen } from "@/lib/einstellungen";
 import { getAktuellerMitarbeiter } from "@/lib/auth";
 import Rangliste from "@/components/Rangliste";
+import UeberraschungsFortschritt from "@/components/UeberraschungsFortschritt";
 
 export default async function RanglistePage() {
   const jetzt = new Date();
-  const [eintraege, einstellungen, aktuellerMitarbeiter] = await Promise.all([
-    berechneRangliste(jetzt),
-    getEinstellungen(),
-    getAktuellerMitarbeiter(),
-  ]);
+  const [eintraege, ueberraschungsEintraege, einstellungen, aktuellerMitarbeiter] =
+    await Promise.all([
+      berechneRangliste(jetzt),
+      berechneUeberraschungsFortschritt(),
+      getEinstellungen(),
+      getAktuellerMitarbeiter(),
+    ]);
 
   return (
     <main className="p-6 md:p-8 max-w-md mx-auto flex flex-col gap-4">
@@ -18,6 +24,10 @@ export default async function RanglistePage() {
         eintraege={eintraege}
         eigeneId={aktuellerMitarbeiter?.id ?? null}
         smileysAktiviert={einstellungen.smileysAktiviert}
+      />
+      <UeberraschungsFortschritt
+        eintraege={ueberraschungsEintraege}
+        eigeneId={aktuellerMitarbeiter?.id ?? null}
       />
     </main>
   );
