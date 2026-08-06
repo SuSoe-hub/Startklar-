@@ -30,13 +30,16 @@ export default function KundenListe({ kunden }: { kunden: Kunde[] }) {
 
   return (
     <>
-      <input
-        type="text"
-        value={suche}
-        onChange={(e) => setSuche(e.target.value)}
-        placeholder="Name, Handynummer oder E-Mail..."
-        className="input w-full mb-2"
-      />
+      <div className="flex items-center gap-2 mb-2">
+        <input
+          type="text"
+          value={suche}
+          onChange={(e) => setSuche(e.target.value)}
+          placeholder="Name, Handynummer oder E-Mail..."
+          className="input w-full"
+        />
+        {suche.trim() && <CopyButton value={suche.trim()} label="Sucheingabe" />}
+      </div>
 
       <a
         href="https://office.go-suite.com/argus"
@@ -67,23 +70,11 @@ export default function KundenListe({ kunden }: { kunden: Kunde[] }) {
                     : ""
                 }`}
               >
-                <div className="flex items-center gap-2">
-                  <div className="font-semibold">
-                    {k.vorname} {k.nachname}
-                  </div>
-                  <CopyButton
-                    value={`${k.vorname} ${k.nachname}`}
-                    label="Name"
-                  />
+                <div className="font-semibold">
+                  {k.vorname} {k.nachname}
                 </div>
-                <div className="text-sm text-[var(--color-muted)] mt-0.5 flex items-center gap-2 flex-wrap">
-                  <span>{k.handynummer ?? "—"}</span>
-                  {k.handynummer && (
-                    <CopyButton value={k.handynummer} label="Handynummer" />
-                  )}
-                  <span>·</span>
-                  <span>{k.email ?? "—"}</span>
-                  {k.email && <CopyButton value={k.email} label="E-Mail" />}
+                <div className="text-sm text-[var(--color-muted)] mt-0.5">
+                  {k.handynummer ?? "—"} · {k.email ?? "—"}
                 </div>
                 {unvollstaendig && (
                   <div className="text-xs text-orange-700 mt-1 font-semibold">
