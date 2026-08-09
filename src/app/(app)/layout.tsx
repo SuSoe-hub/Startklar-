@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { getAktuellerMitarbeiter } from "@/lib/auth";
 import { logout } from "@/lib/auth-actions";
 import SidebarNav from "@/components/SidebarNav";
+import MobileNav from "@/components/MobileNav";
 
 export default async function AppLayout({
   children,
@@ -57,20 +58,9 @@ export default async function AppLayout({
         <span className="font-extrabold text-[var(--color-primary-700)]">
           Startklar
         </span>
-        <Link href="/kunden" className="ml-auto text-sm link">
-          Kunden
-        </Link>
-        <Link href="/einstellungen" className="text-sm link">
-          Einstellungen
-        </Link>
-        <Link href="/rangliste" className="text-sm link">
-          Statistik
-        </Link>
-        <form action={logout}>
-          <button type="submit" className="text-sm link">
-            Abmelden
-          </button>
-        </form>
+        <div className="ml-auto">
+          <MobileNav mitarbeiterName={mitarbeiter.name} />
+        </div>
       </div>
 
       <div className="flex-1 min-w-0 pt-14 md:pt-0">{children}</div>
