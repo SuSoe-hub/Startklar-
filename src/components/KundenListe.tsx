@@ -6,6 +6,12 @@ import CopyButton from "@/components/CopyButton";
 import { enthaeltUmlaut } from "@/lib/umlaute";
 import type { KundenBadge, KundenBadgeFarbe } from "@/lib/kundenstatus";
 
+type KundeVorgang = {
+  status: string;
+  kanal: string;
+  beraterId: string;
+};
+
 type Kunde = {
   id: string;
   vorname: string;
@@ -14,7 +20,10 @@ type Kunde = {
   email: string | null;
   istErledigt: boolean;
   badge: KundenBadge;
+  vorgaenge: KundeVorgang[];
 };
+
+type Mitarbeiter = { id: string; name: string };
 
 const BADGE_STYLE: Record<KundenBadgeFarbe, string> = {
   rot: "text-red-700 bg-red-100",
@@ -24,9 +33,34 @@ const BADGE_STYLE: Record<KundenBadgeFarbe, string> = {
   verloren: "text-gray-600 bg-gray-100",
 };
 
-export default function KundenListe({ kunden }: { kunden: Kunde[] }) {
+const STATUS_LABEL: Record<string, string> = {
+  ANGEBOT_RAUS: "Angebot raus",
+  OPTION: "Option",
+  NACHFASSEN: "Nachfassen",
+  GEBUCHT: "Gebucht",
+  VERLOREN: "Verloren",
+};
+
+const KANAL_LABEL: Record<string, string> = {
+  EMAIL: "E-Mail",
+  WHATSAPP: "WhatsApp",
+  TELEFON: "Telefon",
+  VOR_ORT: "Vor Ort",
+};
+
+export default function KundenListe({
+  kunden,
+  alleMitarbeiter,
+}: {
+  kunden: Kunde[];
+  alleMitarbeiter: Mitarbeiter[];
+}) {
   const [suche, setSuche] = useState("");
   const [tab, setTab] = useState<"aktiv" | "erledigt">("aktiv");
+  const [status, setStatus] = useState("");
+  const [kanal, setKanal] = useState("");
+  const [beraterId, setBeraterId] = useState("");
+  const filterAktiv = !!(status || kanal || beraterId);
 
   const nachTab = useMemo(
     () => kunden.filter((k) => (tab === "aktiv" ? !k.istErledigt : k.istErledigt)),
@@ -36,10 +70,26 @@ export default function KundenListe({ kunden }: { kunden: Kunde[] }) {
   const aktivAnzahl = useMemo(() => kunden.filter((k) => !k.istErledigt).length, [kunden]);
   const erledigtAnzahl = kunden.length - aktivAnzahl;
 
+  // Eine Option hat eine echte Frist und kann im Zweifel Geld kosten -
+  // deshalb darf ein Kunde mit offener Option nie durch einen Filter aus der
+  // Liste verschwinden (siehe StartseiteFilter.tsx für dieselbe Regel).
+  const nachFilter = useMemo(() => {
+    if (!filterAktiv) return nachTab;
+    return nachTab.filter((k) =>
+      k.vorgaenge.some(
+        (v) =>
+          v.status === "OPTION" ||
+          ((!status || v.status === status) &&
+            (!kanal || v.kanal === kanal) &&
+            (!beraterId || v.beraterId === beraterId))
+      )
+    );
+  }, [nachTab, filterAktiv, status, kanal, beraterId]);
+
   const gefiltert = useMemo(() => {
     const begriff = suche.trim().toLowerCase();
-    if (!begriff) return nachTab;
-    return nachTab.filter((k) => {
+    if (!begriff) return nachFilter;
+    return nachFilter.filter((k) => {
       const name = `${k.vorname} ${k.nachname}`.toLowerCase();
       return (
         name.includes(begriff) ||
@@ -47,7 +97,7 @@ export default function KundenListe({ kunden }: { kunden: Kunde[] }) {
         (k.email ?? "").toLowerCase().includes(begriff)
       );
     });
-  }, [nachTab, suche]);
+  }, [nachFilter, suche]);
 
   return (
     <>
@@ -66,6 +116,61 @@ export default function KundenListe({ kunden }: { kunden: Kunde[] }) {
         >
           Erledigt ({erledigtAnzahl})
         </button>
+      </div>
+
+      <div className="flex flex-wrap items-center gap-2 mb-2">
+        <select
+          value={status}
+          onChange={(e) => setStatus(e.target.value)}
+          className="input w-auto text-sm"
+          aria-label="Nach Status filtern"
+        >
+          <option value="">Alle Status</option>
+          {Object.entries(STATUS_LABEL).map(([wert, label]) => (
+            <option key={wert} value={wert}>
+              {label}
+            </option>
+          ))}
+        </select>
+        <select
+          value={kanal}
+          onChange={(e) => setKanal(e.target.value)}
+          className="input w-auto text-sm"
+          aria-label="Nach Kanal filtern"
+        >
+          <option value="">Alle Kanäle</option>
+          {Object.entries(KANAL_LABEL).map(([wert, label]) => (
+            <option key={wert} value={wert}>
+              {label}
+            </option>
+          ))}
+        </select>
+        <select
+          value={beraterId}
+          onChange={(e) => setBeraterId(e.target.value)}
+          className="input w-auto text-sm"
+          aria-label="Nach Berater filtern"
+        >
+          <option value="">Alle Berater</option>
+          {alleMitarbeiter.map((m) => (
+            <option key={m.id} value={m.id}>
+              {m.name}
+            </option>
+          ))}
+        </select>
+        {filterAktiv && (
+          <button
+            type="button"
+            onClick={() => {
+              setStatus("");
+              setKanal("");
+              setBeraterId("");
+            }}
+            className="link text-sm"
+          >
+            Filter zurücksetzen
+          </button>
+        )}
       </div>
 
       <div className="flex items-center gap-2 mb-1">
@@ -111,9 +216,11 @@ export default function KundenListe({ kunden }: { kunden: Kunde[] }) {
         <p className="text-sm text-[var(--color-muted)]">
           {suche
             ? "Kein Kunde gefunden."
-            : tab === "aktiv"
-              ? "Keine aktiven Kunden."
-              : "Noch keine erledigten Kunden."}
+            : filterAktiv
+              ? "Kein Kunde für diese Filterauswahl."
+              : tab === "aktiv"
+                ? "Keine aktiven Kunden."
+                : "Noch keine erledigten Kunden."}
         </p>
       )}
 

@@ -1,6 +1,7 @@
 {
   "crons": [
     { "path": "/api/teams-erinnerung", "schedule": "0 8 * * *" },
-    { "path": "/api/teams-erinnerung", "schedule": "0 12 * * *" }
+    { "path": "/api/teams-erinnerung", "schedule": "0 12 * * *" },
+    { "path": "/api/email-erinnerung", "schedule": "0 8 * * *" }
   ]
 }

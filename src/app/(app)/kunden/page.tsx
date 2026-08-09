@@ -4,14 +4,24 @@ import KundenListe from "@/components/KundenListe";
 import { kundenBadge, kundeIstErledigt } from "@/lib/kundenstatus";
 
 export default async function KundenPage() {
-  const kunden = await prisma.kunde.findMany({
-    orderBy: { createdAt: "desc" },
-    include: {
-      vorgaenge: {
-        select: { status: true, wiedervorlage: true, optionsfrist: true, updatedAt: true },
+  const [kunden, alleMitarbeiter] = await Promise.all([
+    prisma.kunde.findMany({
+      orderBy: { createdAt: "desc" },
+      include: {
+        vorgaenge: {
+          select: {
+            status: true,
+            kanal: true,
+            beraterId: true,
+            wiedervorlage: true,
+            optionsfrist: true,
+            updatedAt: true,
+          },
+        },
       },
-    },
-  });
+    }),
+    prisma.mitarbeiter.findMany({ orderBy: { name: "asc" } }),
+  ]);
 
   const jetzt = new Date();
 
@@ -19,6 +29,11 @@ export default async function KundenPage() {
     ...k,
     istErledigt: kundeIstErledigt(vorgaenge),
     badge: kundenBadge(vorgaenge, jetzt),
+    vorgaenge: vorgaenge.map((v) => ({
+      status: v.status,
+      kanal: v.kanal,
+      beraterId: v.beraterId,
+    })),
   }));
 
   const sortiert = [...angereichert].sort((a, b) => {
@@ -36,7 +51,7 @@ export default async function KundenPage() {
         </Link>
       </div>
 
-      <KundenListe kunden={sortiert} />
+      <KundenListe kunden={sortiert} alleMitarbeiter={alleMitarbeiter} />
     </main>
   );
 }

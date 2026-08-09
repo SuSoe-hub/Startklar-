@@ -6,6 +6,7 @@ import { findeMoeglicheDubletten } from "@/lib/dubletten";
 import MergeKundeButton from "@/components/MergeKundeButton";
 import DeleteKundeButton from "@/components/DeleteKundeButton";
 import CopyButton from "@/components/CopyButton";
+import { getAktuellerMitarbeiter } from "@/lib/auth";
 import { BERLIN_TZ } from "@/lib/zeit";
 
 const STATUS_LABEL: Record<string, string> = {
@@ -33,6 +34,7 @@ export default async function KundeDetailPage({
 
   if (!kunde) notFound();
 
+  const aktuellerMitarbeiter = await getAktuellerMitarbeiter();
   const unvollstaendig = !(kunde.handynummer && kunde.email);
   const statistik = kundenStatistik(kunde.vorgaenge, new Date());
   const dubletten = await findeMoeglicheDubletten({
@@ -164,12 +166,14 @@ export default async function KundeDetailPage({
       </ul>
 
       <div className="mt-8 flex flex-col gap-2 items-start">
-        <a
-          href={`/kunden/${kunde.id}/export`}
-          className="text-xs text-[var(--color-muted)] underline hover:text-[var(--color-primary-600)]"
-        >
-          Daten dieses Kunden exportieren (JSON)
-        </a>
+        {aktuellerMitarbeiter?.istAdmin && (
+          <a
+            href={`/kunden/${kunde.id}/export`}
+            className="text-xs text-[var(--color-muted)] underline hover:text-[var(--color-primary-600)]"
+          >
+            Daten dieses Kunden exportieren (JSON)
+          </a>
+        )}
         <DeleteKundeButton
           kundeId={kunde.id}
           anzahlVorgaenge={kunde.vorgaenge.length}

@@ -150,6 +150,17 @@ export default function DatenschutzPage() {
                 Unternehmens besteht, ist die Auftragsverarbeitung darüber
                 mitabgedeckt.
               </li>
+              <li>
+                <strong>Microsoft (E-Mail)</strong> – Startklar versendet
+                täglich automatisiert eine E-Mail an die interne Adresse
+                info@tce-reisen.com mit den Vor- und Nachnamen der Kunden, bei
+                denen ein Termin überfällig ist, sowie dem jeweils
+                zuständigen Berater. Der Versand erfolgt über das
+                unternehmenseigene Microsoft-365-Konto (Microsoft Graph API),
+                nicht über einen zusätzlichen externen E-Mail-Dienstleister.
+                Da hier bereits ein Microsoft-365-Vertrag des Unternehmens
+                besteht, ist die Auftragsverarbeitung darüber mitabgedeckt.
+              </li>
             </ul>
             <p className="mt-2 text-sm text-[var(--color-muted)]">
               <em>

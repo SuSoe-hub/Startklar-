@@ -27,6 +27,7 @@ export default function KundeForm() {
   const [handynummer, setHandynummer] = useState("");
   const [email, setEmail] = useState("");
   const [hinweis, setHinweis] = useState<DuplicateHinweis>(null);
+  const [trotzdemAnlegen, setTrotzdemAnlegen] = useState(false);
   const [umlautImNamen, setUmlautImNamen] = useState(false);
 
   const vornameRef = useRef<HTMLInputElement>(null);
@@ -51,6 +52,7 @@ export default function KundeForm() {
   async function pruefeDublette(handy: string, mail: string) {
     const result = await checkDuplicateKunde(handy, mail);
     setHinweis(result);
+    setTrotzdemAnlegen(false);
   }
 
   function pruefeUmlaut() {
@@ -155,13 +157,23 @@ export default function KundeForm() {
       </p>
 
       {hinweis && (
-        <div className="card border-l-4 border-l-[var(--color-primary-400)] bg-[var(--color-primary-50)]/60 p-3 text-sm">
-          {hinweis.letzteBeratung
-            ? `${hinweis.name} wurde am ${hinweis.letzteBeratung.datum} von ${hinweis.letzteBeratung.berater} beraten.`
-            : `${hinweis.name} ist bereits als Kunde angelegt.`}{" "}
-          <Link href={`/kunden/${hinweis.kundeId}`} className="font-semibold link">
-            Vorgang öffnen?
-          </Link>
+        <div className="card border-l-4 border-l-[var(--color-primary-400)] bg-[var(--color-primary-50)]/60 p-3 text-sm flex flex-col gap-2">
+          <p>
+            {hinweis.letzteBeratung
+              ? `${hinweis.name} wurde am ${hinweis.letzteBeratung.datum} von ${hinweis.letzteBeratung.berater} beraten.`
+              : `${hinweis.name} ist bereits als Kunde angelegt.`}{" "}
+            <Link href={`/kunden/${hinweis.kundeId}`} className="font-semibold link">
+              Vorgang öffnen?
+            </Link>
+          </p>
+          <label className="flex items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              checked={trotzdemAnlegen}
+              onChange={(e) => setTrotzdemAnlegen(e.target.checked)}
+            />
+            Ich möchte trotzdem einen neuen Kunden anlegen.
+          </label>
         </div>
       )}
 
@@ -171,7 +183,11 @@ export default function KundeForm() {
         </p>
       )}
 
-      <button type="submit" disabled={pending} className="btn-primary self-start">
+      <button
+        type="submit"
+        disabled={pending || (!!hinweis && !trotzdemAnlegen)}
+        className="btn-primary self-start"
+      >
         {pending ? "Speichern…" : "Kunde speichern"}
       </button>
     </form>

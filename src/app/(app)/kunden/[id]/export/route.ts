@@ -10,6 +10,12 @@ export async function GET(
   if (!mitarbeiter) {
     return NextResponse.json({ error: "Nicht angemeldet." }, { status: 401 });
   }
+  if (!mitarbeiter.istAdmin) {
+    return NextResponse.json(
+      { error: "Nur Admins dürfen Kundendaten exportieren." },
+      { status: 403 }
+    );
+  }
 
   const { id } = await params;
   const kunde = await prisma.kunde.findUnique({

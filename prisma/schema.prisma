@@ -150,6 +150,7 @@ model Notiz {
   vorgangId     String
   text          String
   erstelltAm    DateTime     @default(now())
+  bearbeitetAm  DateTime?
   mitarbeiter   Mitarbeiter? @relation(fields: [mitarbeiterId], references: [id])
   mitarbeiterId String?
 

@@ -695,6 +695,55 @@ export async function addNotiz(
   return { error: null };
 }
 
+export type UpdateNotizFormState = { error: string | null; text: string };
+
+export async function updateNotiz(
+  notizId: string,
+  vorgangId: string,
+  _prevState: UpdateNotizFormState,
+  formData: FormData
+): Promise<UpdateNotizFormState> {
+  const rawText = (formData.get("text") as string) ?? "";
+  const text = rawText.trim();
+  if (!text) {
+    return { error: "Notiz darf nicht leer sein.", text: rawText };
+  }
+
+  const mitarbeiter = await getAktuellerMitarbeiter();
+  const notiz = await prisma.notiz.findUnique({ where: { id: notizId } });
+  if (!notiz || !mitarbeiter || notiz.mitarbeiterId !== mitarbeiter.id) {
+    return { error: "Diese Notiz darfst du nicht bearbeiten.", text: rawText };
+  }
+
+  await prisma.notiz.update({
+    where: { id: notizId },
+    data: { text, bearbeitetAm: new Date() },
+  });
+
+  revalidatePath(`/vorgaenge/${vorgangId}`);
+  return { error: null, text };
+}
+
+export type DeleteNotizFormState = { error: string | null };
+
+export async function deleteNotiz(
+  notizId: string,
+  vorgangId: string,
+  _prevState: DeleteNotizFormState,
+  _formData: FormData
+): Promise<DeleteNotizFormState> {
+  const mitarbeiter = await getAktuellerMitarbeiter();
+  const notiz = await prisma.notiz.findUnique({ where: { id: notizId } });
+  if (!notiz || !mitarbeiter || notiz.mitarbeiterId !== mitarbeiter.id) {
+    return { error: "Diese Notiz darfst du nicht löschen." };
+  }
+
+  await prisma.notiz.delete({ where: { id: notizId } });
+
+  revalidatePath(`/vorgaenge/${vorgangId}`);
+  return { error: null };
+}
+
 export type EinstellungenFormState = { error: string | null };
 
 export async function updateSchwelle(

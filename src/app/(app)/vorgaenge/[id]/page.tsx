@@ -6,8 +6,10 @@ import AngebotLinkForm from "@/components/AngebotLinkForm";
 import OptionAufloesenPanel from "@/components/OptionAufloesenPanel";
 import WiedervorlageForm from "@/components/WiedervorlageForm";
 import NotizForm from "@/components/NotizForm";
+import NotizItem from "@/components/NotizItem";
 import AnerkennungFlash from "@/components/AnerkennungFlash";
 import DeleteVorgangButton from "@/components/DeleteVorgangButton";
+import { getAktuellerMitarbeiter } from "@/lib/auth";
 import { heutePlusWerktage } from "@/lib/werktage";
 import { BERLIN_TZ, berlinDatumMitUhrzeit, formatBerlinDatetimeLocal } from "@/lib/zeit";
 
@@ -32,7 +34,7 @@ export default async function VorgangDetailPage({
 }) {
   const { id } = await params;
   const { anerkennung } = await searchParams;
-  const [vorgang, veranstalterListe] = await Promise.all([
+  const [vorgang, veranstalterListe, aktuellerMitarbeiter] = await Promise.all([
     prisma.vorgang.findUnique({
       where: { id },
       include: {
@@ -46,6 +48,7 @@ export default async function VorgangDetailPage({
       },
     }),
     prisma.veranstalter.findMany({ orderBy: { code: "asc" } }),
+    getAktuellerMitarbeiter(),
   ]);
 
   if (!vorgang) notFound();
@@ -158,16 +161,15 @@ export default async function VorgangDetailPage({
         <NotizForm vorgangId={vorgang.id} />
         <ul className="flex flex-col gap-2 mt-3">
           {vorgang.notizen.map((n) => (
-            <li
+            <NotizItem
               key={n.id}
-              className="text-sm border-l-2 pl-2 border-[var(--color-border)]"
-            >
-              <div className="text-xs text-[var(--color-muted)]">
-                {n.mitarbeiter ? `${n.mitarbeiter.name} · ` : ""}
-                {n.erstelltAm.toLocaleString("de-DE", { timeZone: BERLIN_TZ })}
-              </div>
-              <div>{n.text}</div>
-            </li>
+              notiz={n}
+              vorgangId={vorgang.id}
+              istEigene={
+                !!aktuellerMitarbeiter &&
+                n.mitarbeiterId === aktuellerMitarbeiter.id
+              }
+            />
           ))}
         </ul>
       </section>
