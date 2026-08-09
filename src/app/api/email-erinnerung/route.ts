@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { sammleUeberfaelligeVorgaenge } from "@/lib/erinnerung";
 import { sendeMail } from "@/lib/msgraph";
+import { formatBerlinDatetimeLocal } from "@/lib/zeit";
 
 export async function GET(request: NextRequest) {
   // Vercel Cron schickt CRON_SECRET automatisch als "Authorization: Bearer ..."
@@ -13,6 +14,14 @@ export async function GET(request: NextRequest) {
 
   if (!process.env.CRON_SECRET || providedSecret !== process.env.CRON_SECRET) {
     return NextResponse.json({ error: "Nicht autorisiert." }, { status: 401 });
+  }
+
+  // Einmaliger Aufschub auf Susannas Wunsch: der erste echte Lauf soll erst
+  // nach der Team-Einweisung am 10.8.2026 stattfinden, nicht schon morgens
+  // davor. Kann nach dem 11.8.2026 gefahrlos wieder entfernt werden.
+  const heuteBerlin = formatBerlinDatetimeLocal(new Date()).slice(0, 10);
+  if (heuteBerlin < "2026-08-11") {
+    return NextResponse.json({ gesendet: false, anzahl: 0, verschoben: true });
   }
 
   const von = process.env.ERINNERUNG_EMAIL_VON;
