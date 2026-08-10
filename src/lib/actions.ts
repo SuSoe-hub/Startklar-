@@ -18,6 +18,8 @@ import {
 export type DuplicateHinweis = {
   kundeId: string;
   name: string;
+  handyTreffer: boolean;
+  emailTreffer: boolean;
   letzteBeratung: { datum: string; berater: string } | null;
 } | null;
 
@@ -51,6 +53,8 @@ export async function checkDuplicateKunde(
   return {
     kundeId: kunde.id,
     name: `${kunde.vorname} ${kunde.nachname}`,
+    handyTreffer: !!handy && kunde.handynummer === handy,
+    emailTreffer: !!mail && kunde.email === mail,
     letzteBeratung: letzterVorgang
       ? {
           datum: letzterVorgang.erstelltAm.toLocaleDateString("de-DE", {
