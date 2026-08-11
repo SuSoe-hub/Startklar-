@@ -15,6 +15,7 @@ export default async function KundenPage() {
             beraterId: true,
             wiedervorlage: true,
             optionsfrist: true,
+            optionsArt: true,
             updatedAt: true,
           },
         },

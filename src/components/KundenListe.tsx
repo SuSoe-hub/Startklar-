@@ -227,14 +227,17 @@ export default function KundenListe({
       <ul className="flex flex-col gap-2">
         {gefiltert.map((k) => {
           const unvollstaendig = !(k.handynummer && k.email);
+          const istOption = k.vorgaenge.some((v) => v.status === "OPTION");
           return (
             <li key={k.id}>
               <Link
                 href={`/kunden/${k.id}`}
                 className={`card block p-4 hover:shadow-md transition-shadow ${
-                  unvollstaendig
-                    ? "border-l-4 border-l-orange-500 bg-orange-50/50"
-                    : ""
+                  istOption
+                    ? "border-l-4 border-l-red-500 bg-red-50/50"
+                    : unvollstaendig
+                      ? "border-l-4 border-l-orange-500 bg-orange-50/50"
+                      : ""
                 }`}
               >
                 <div className="flex items-center justify-between gap-2">

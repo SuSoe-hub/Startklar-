@@ -6,7 +6,13 @@ type VorgangFuerStatus = {
   status: string;
   wiedervorlage: Date | null;
   optionsfrist: Date | null;
+  optionsArt: string | null;
   updatedAt: Date;
+};
+
+const OPTIONSART_BADGE_LABEL: Record<string, string> = {
+  KUNDENOPTION: "Kundenoption",
+  INTERN: "intern",
 };
 
 // Ein Kunde gilt nur dann als erledigt, wenn ALLE Vorgänge auf Gebucht oder
@@ -32,6 +38,17 @@ export function kundenBadge(
   if (vorgaenge.length === 0) return null;
 
   const offene = vorgaenge.filter((v) => OFFENE_STATI.has(v.status));
+
+  // Eine offene Option hat eine echte Frist und kann im Zweifel Geld kosten -
+  // sie soll deshalb immer rot auffallen, unabhängig davon wie weit ihre
+  // Frist noch entfernt ist (gleiche Regel wie in ampel.ts/StartseiteFilter).
+  const offeneOption = offene.find((v) => v.status === "OPTION");
+  if (offeneOption) {
+    return {
+      label: OPTIONSART_BADGE_LABEL[offeneOption.optionsArt ?? ""] ?? "Option",
+      farbe: "rot",
+    };
+  }
 
   if (offene.length === 0) {
     const letzter = [...vorgaenge].sort(
