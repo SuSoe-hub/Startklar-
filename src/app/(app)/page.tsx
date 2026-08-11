@@ -163,8 +163,8 @@ export default async function UebersichtPage() {
           {heuteOderUeberfaellig === 0
             ? " – heute ist nichts fällig."
             : heuteOderUeberfaellig === 1
-              ? " – 1 Kunde wartet heute auf dich."
-              : ` – ${heuteOderUeberfaellig} Kunden warten heute auf dich.`}
+              ? " – heute ist 1 Vorgang fällig!"
+              : ` – heute sind ${heuteOderUeberfaellig} Vorgänge fällig!`}
         </p>
       </div>
 
