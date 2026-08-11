@@ -1,10 +1,14 @@
 import Image from "next/image";
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { cookies } from "next/headers";
 import { getAktuellerMitarbeiter } from "@/lib/auth";
 import { logout } from "@/lib/auth-actions";
+import { prisma } from "@/lib/prisma";
+import { ANWESENHEIT_GEFRAGT_COOKIE, heutigesDatumString } from "@/lib/teampool";
 import SidebarNav from "@/components/SidebarNav";
 import MobileNav from "@/components/MobileNav";
+import AnwesenheitsPflichtfrage from "@/components/AnwesenheitsPflichtfrage";
 
 export default async function AppLayout({
   children,
@@ -13,6 +17,23 @@ export default async function AppLayout({
 }) {
   const mitarbeiter = await getAktuellerMitarbeiter();
   if (!mitarbeiter) redirect("/login");
+
+  const heute = heutigesDatumString(new Date());
+  const [anwesenheitHeute, cookieStore] = await Promise.all([
+    prisma.anwesenheit.findUnique({
+      where: {
+        datum_mitarbeiterId: { datum: heute, mitarbeiterId: mitarbeiter.id },
+      },
+    }),
+    cookies(),
+  ]);
+  const bereitsBeantwortet =
+    !!anwesenheitHeute ||
+    cookieStore.get(ANWESENHEIT_GEFRAGT_COOKIE)?.value === heute;
+
+  if (!bereitsBeantwortet) {
+    return <AnwesenheitsPflichtfrage mitarbeiter={mitarbeiter} />;
+  }
 
   return (
     <div className="min-h-screen flex">

@@ -3,7 +3,8 @@
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { heutigesDatumString } from "@/lib/teampool";
+import { cookies } from "next/headers";
+import { heutigesDatumString, ANWESENHEIT_GEFRAGT_COOKIE } from "@/lib/teampool";
 import { getAktuellerMitarbeiter } from "@/lib/auth";
 import { parseBerlinDatetimeLocal, BERLIN_TZ } from "@/lib/zeit";
 import {
@@ -930,7 +931,7 @@ export async function markiereAnwesend(mitarbeiterId: string) {
     create: { datum, mitarbeiterId },
   });
 
-  revalidatePath("/");
+  revalidatePath("/", "layout");
 }
 
 // Korrekturmöglichkeit bei Fehlklick.
@@ -944,7 +945,28 @@ export async function entferneAnwesend(mitarbeiterId: string) {
 
   await prisma.anwesenheit.deleteMany({ where: { datum, mitarbeiterId } });
 
-  revalidatePath("/");
+  revalidatePath("/", "layout");
+}
+
+// Antwort "Nein, heute nicht da" auf die Pflichtfrage direkt nach dem Login:
+// legt bewusst keine Anwesenheit-Zeile an (die Abwesenheits-Umverteilung
+// bezieht sich nur auf tatsächlich anwesende Kolleg:innen), merkt sich die
+// Antwort aber per Cookie für den Tag, damit die Sperre nicht bei jeder
+// weiteren Seite erneut erscheint.
+export async function ueberspringeAnwesenheitsfrage() {
+  const aktuellerMitarbeiter = await getAktuellerMitarbeiter();
+  if (!aktuellerMitarbeiter) return;
+
+  const cookieStore = await cookies();
+  cookieStore.set(ANWESENHEIT_GEFRAGT_COOKIE, heutigesDatumString(new Date()), {
+    httpOnly: true,
+    sameSite: "lax",
+    secure: process.env.NODE_ENV === "production",
+    path: "/",
+    maxAge: 60 * 60 * 24,
+  });
+
+  revalidatePath("/", "layout");
 }
 
 export type UebernahmeFormState = {

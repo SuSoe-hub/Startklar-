@@ -1,3 +1,8 @@
+// Merkt sich per Cookie, dass jemand die "Bist du heute da?"-Pflichtfrage
+// beim Login schon mit "Nein" beantwortet hat - sonst würde die Sperre bei
+// jeder Navigation erneut aufpoppen, obwohl schon geantwortet wurde.
+export const ANWESENHEIT_GEFRAGT_COOKIE = "startklar_anwesenheit_gefragt";
+
 export function heutigesDatumString(jetzt: Date) {
   const pad = (n: number) => String(n).padStart(2, "0");
   return `${jetzt.getFullYear()}-${pad(jetzt.getMonth() + 1)}-${pad(
