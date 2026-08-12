@@ -146,7 +146,9 @@ export default async function VorgangDetailPage({
         <AngebotLinkForm vorgangId={vorgang.id} angebotLink={vorgang.angebotLink} />
       </section>
 
-      {vorgang.status !== "GEBUCHT" && vorgang.status !== "VERLOREN" && (
+      {vorgang.status !== "GEBUCHT" &&
+        vorgang.status !== "VERLOREN" &&
+        vorgang.status !== "ERLEDIGT" && (
         <section className="card p-4">
           <h2 className="font-semibold mb-2">Wiedervorlage</h2>
           <WiedervorlageForm

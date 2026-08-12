@@ -31,6 +31,7 @@ const BADGE_STYLE: Record<KundenBadgeFarbe, string> = {
   gruen: "text-green-700 bg-green-100",
   gebucht: "text-teal-700 bg-teal-100",
   verloren: "text-gray-600 bg-gray-100",
+  erledigt: "text-slate-700 bg-slate-100",
 };
 
 const STATUS_LABEL: Record<string, string> = {
@@ -75,9 +76,9 @@ export default function KundenListe({
   // deshalb darf ein Kunde mit offener Option nie durch einen Filter aus der
   // Liste verschwinden (siehe StartseiteFilter.tsx für dieselbe Regel).
   //
-  // "Erledigt" ist kein echter VorgangStatus, sondern fasst Gebucht und
-  // Verloren zusammen (gleiche Definition wie kundeIstErledigt in
-  // kundenstatus.ts).
+  // Der "Erledigt"-Filter deckt neben dem echten Status ERLEDIGT auch
+  // Gebucht und Verloren ab (gleiche Definition wie kundeIstErledigt in
+  // kundenstatus.ts: alles außerhalb der offenen Stati).
   const nachFilter = useMemo(() => {
     if (!filterAktiv) return nachTab;
     return nachTab.filter((k) =>
@@ -85,7 +86,9 @@ export default function KundenListe({
         const statusPasst =
           !status ||
           (status === "ERLEDIGT"
-            ? v.status === "GEBUCHT" || v.status === "VERLOREN"
+            ? v.status === "GEBUCHT" ||
+              v.status === "VERLOREN" ||
+              v.status === "ERLEDIGT"
             : v.status === status);
         return (
           v.status === "OPTION" ||

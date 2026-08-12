@@ -23,7 +23,13 @@ export function kundeIstErledigt(vorgaenge: VorgangFuerStatus[]) {
   return vorgaenge.every((v) => !OFFENE_STATI.has(v.status));
 }
 
-export type KundenBadgeFarbe = "rot" | "gelb" | "gruen" | "gebucht" | "verloren";
+export type KundenBadgeFarbe =
+  | "rot"
+  | "gelb"
+  | "gruen"
+  | "gebucht"
+  | "verloren"
+  | "erledigt";
 
 export type KundenBadge = { label: string; farbe: KundenBadgeFarbe } | null;
 
@@ -54,9 +60,9 @@ export function kundenBadge(
     const letzter = [...vorgaenge].sort(
       (a, b) => b.updatedAt.getTime() - a.updatedAt.getTime()
     )[0];
-    return letzter.status === "GEBUCHT"
-      ? { label: "Gebucht", farbe: "gebucht" }
-      : { label: "Verloren", farbe: "verloren" };
+    if (letzter.status === "GEBUCHT") return { label: "Gebucht", farbe: "gebucht" };
+    if (letzter.status === "ERLEDIGT") return { label: "Erledigt", farbe: "erledigt" };
+    return { label: "Verloren", farbe: "verloren" };
   }
 
   const dringendste = offene

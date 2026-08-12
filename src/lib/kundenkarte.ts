@@ -18,6 +18,7 @@ export function kundenStatistik(
   ).length;
   const gebucht = vorgaenge.filter((v) => v.status === "GEBUCHT");
   const verloren = vorgaenge.filter((v) => v.status === "VERLOREN").length;
+  const erledigt = vorgaenge.filter((v) => v.status === "ERLEDIGT").length;
   const offen = vorgaenge.filter(
     (v) =>
       v.status === "ANGEBOT_RAUS" ||
@@ -34,6 +35,7 @@ export function kundenStatistik(
     imLaufendenJahr,
     gebucht: gebucht.length,
     verloren,
+    erledigt,
     offen,
     letzteBuchungAm: letzteBuchung?.updatedAt ?? null,
   };

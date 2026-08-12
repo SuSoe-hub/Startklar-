@@ -11,9 +11,11 @@ import { BERLIN_TZ } from "@/lib/zeit";
 
 const STATUS_LABEL: Record<string, string> = {
   ANGEBOT_RAUS: "Angebot raus",
+  OPTION: "Option",
   NACHFASSEN: "Nachfassen",
   GEBUCHT: "Gebucht",
   VERLOREN: "Verloren",
+  ERLEDIGT: "Erledigt",
 };
 
 export default async function KundeDetailPage({
@@ -119,6 +121,8 @@ export default async function KundeDetailPage({
         <div>{statistik.gebucht}</div>
         <div className="text-[var(--color-muted)]">verloren</div>
         <div>{statistik.verloren}</div>
+        <div className="text-[var(--color-muted)]">erledigt</div>
+        <div>{statistik.erledigt}</div>
         <div className="text-[var(--color-muted)]">offen</div>
         <div>{statistik.offen}</div>
         <div className="text-[var(--color-muted)]">letzte Buchung</div>
