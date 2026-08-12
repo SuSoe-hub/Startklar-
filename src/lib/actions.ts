@@ -222,7 +222,9 @@ export async function createVorgang(
         kanal: kanal as (typeof KANAL_WERTE)[number],
         status: "ANGEBOT_RAUS",
         wiedervorlage,
-        notizen: notizText ? { create: [{ text: notizText }] } : undefined,
+        notizen: notizText
+          ? { create: [{ text: notizText, mitarbeiterId: erstellendeMitarbeiter?.id }] }
+          : undefined,
       },
     });
 
@@ -702,10 +704,18 @@ export async function addNotiz(
     return { error: "Notiz darf nicht leer sein." };
   }
 
+  // Ohne bekannten Mitarbeiter (z.B. Sitzung wegen Inaktivität abgelaufen)
+  // nicht stillschweigend eine Notiz ohne Namen speichern - sonst weiß später
+  // niemand mehr, wer sie geschrieben hat.
   const mitarbeiter = await getAktuellerMitarbeiter();
+  if (!mitarbeiter) {
+    return {
+      error: "Sitzung abgelaufen. Bitte neu einloggen und erneut versuchen.",
+    };
+  }
 
   await prisma.notiz.create({
-    data: { vorgangId, text, mitarbeiterId: mitarbeiter?.id },
+    data: { vorgangId, text, mitarbeiterId: mitarbeiter.id },
   });
 
   revalidatePath(`/vorgaenge/${vorgangId}`);
