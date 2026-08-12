@@ -277,6 +277,7 @@ const STATUS_WERTE = [
   "NACHFASSEN",
   "GEBUCHT",
   "VERLOREN",
+  "ERLEDIGT",
 ] as const;
 
 export async function updateVorgangStatus(
@@ -420,7 +421,12 @@ export async function updateVorgangStatus(
       await prisma.vorgang.update({
         where: { id: vorgangId },
         data: {
-          status: status as "ANGEBOT_RAUS" | "NACHFASSEN" | "GEBUCHT" | "VERLOREN",
+          status: status as
+            | "ANGEBOT_RAUS"
+            | "NACHFASSEN"
+            | "GEBUCHT"
+            | "VERLOREN"
+            | "ERLEDIGT",
           buchungsweg:
             status === "GEBUCHT"
               ? (buchungsweg as "PERSOENLICH" | "SCHRIFTLICH")

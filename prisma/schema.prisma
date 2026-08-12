@@ -23,6 +23,7 @@ enum VorgangStatus {
   NACHFASSEN
   GEBUCHT
   VERLOREN
+  ERLEDIGT
 }
 
 enum OptionsArt {

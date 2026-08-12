@@ -122,6 +122,7 @@ export default function VorgangStatusForm({
           <option value="NACHFASSEN">Nachfassen</option>
           <option value="GEBUCHT">Gebucht</option>
           <option value="VERLOREN">Verloren</option>
+          <option value="ERLEDIGT">Erledigt</option>
         </select>
       </div>
 
