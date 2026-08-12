@@ -8,6 +8,11 @@ import { heutigesDatumString, ANWESENHEIT_GEFRAGT_COOKIE } from "@/lib/teampool"
 import { getAktuellerMitarbeiter } from "@/lib/auth";
 import { parseBerlinDatetimeLocal, BERLIN_TZ } from "@/lib/zeit";
 import {
+  zaehleUngeleseneVorgaenge,
+  ladeUngeleseneVorgaenge,
+  type UngeleseneVorgang,
+} from "@/lib/benachrichtigung";
+import {
   pruefeErsterVorgang,
   pruefeZehnVorgaengeHeute,
   pruefeFuenfzigVorgaenge,
@@ -203,12 +208,17 @@ export async function createVorgang(
     ? parseBerlinDatetimeLocal(wiedervorlageRaw)
     : null;
 
+  // Wird für die Benachrichtigungsglocke gebraucht: legt jemand einen Vorgang
+  // für eine Kollegin/einen Kollegen an, soll die/der Zuständige das sehen.
+  const erstellendeMitarbeiter = await getAktuellerMitarbeiter();
+
   let zielUrl: string;
   try {
     const vorgang = await prisma.vorgang.create({
       data: {
         kundeId,
         beraterId,
+        erstelltVonId: erstellendeMitarbeiter?.id ?? null,
         kanal: kanal as (typeof KANAL_WERTE)[number],
         status: "ANGEBOT_RAUS",
         wiedervorlage,
@@ -1023,4 +1033,33 @@ export async function uebernehmeVorgang(
     console.error("uebernehmeVorgang fehlgeschlagen:", fehler);
     return { error: "Speichern fehlgeschlagen, bitte erneut versuchen.", anerkennung: null };
   }
+}
+
+// Benachrichtigungsglocke: zeigt Vorgänge, die jemand anders für den aktuell
+// angemeldeten Mitarbeiter angelegt hat (siehe lib/benachrichtigung.ts).
+export async function holeUngeleseneAnzahl(): Promise<number> {
+  const mitarbeiter = await getAktuellerMitarbeiter();
+  if (!mitarbeiter) return 0;
+  return zaehleUngeleseneVorgaenge(
+    mitarbeiter.id,
+    mitarbeiter.benachrichtigungenGelesenAm
+  );
+}
+
+export async function holeUngeleseneVorgaenge(): Promise<UngeleseneVorgang[]> {
+  const mitarbeiter = await getAktuellerMitarbeiter();
+  if (!mitarbeiter) return [];
+  return ladeUngeleseneVorgaenge(
+    mitarbeiter.id,
+    mitarbeiter.benachrichtigungenGelesenAm
+  );
+}
+
+export async function markiereBenachrichtigungenGelesen() {
+  const mitarbeiter = await getAktuellerMitarbeiter();
+  if (!mitarbeiter) return;
+  await prisma.mitarbeiter.update({
+    where: { id: mitarbeiter.id },
+    data: { benachrichtigungenGelesenAm: new Date() },
+  });
 }

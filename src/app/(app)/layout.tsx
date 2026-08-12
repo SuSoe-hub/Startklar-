@@ -6,8 +6,10 @@ import { getAktuellerMitarbeiter } from "@/lib/auth";
 import { logout } from "@/lib/auth-actions";
 import { prisma } from "@/lib/prisma";
 import { ANWESENHEIT_GEFRAGT_COOKIE, heutigesDatumString } from "@/lib/teampool";
+import { zaehleUngeleseneVorgaenge } from "@/lib/benachrichtigung";
 import SidebarNav from "@/components/SidebarNav";
 import MobileNav from "@/components/MobileNav";
+import Glocke from "@/components/Glocke";
 import AnwesenheitsPflichtfrage from "@/components/AnwesenheitsPflichtfrage";
 
 export default async function AppLayout({
@@ -35,23 +37,31 @@ export default async function AppLayout({
     return <AnwesenheitsPflichtfrage mitarbeiter={mitarbeiter} />;
   }
 
+  const ungeleseneAnzahl = await zaehleUngeleseneVorgaenge(
+    mitarbeiter.id,
+    mitarbeiter.benachrichtigungenGelesenAm
+  );
+
   return (
     <div className="min-h-screen flex">
       <aside className="w-64 shrink-0 hidden md:flex flex-col gap-1 bg-white border-r border-[var(--color-border)] p-4">
-        <Link
-          href="/"
-          className="flex items-center gap-2.5 font-extrabold text-[var(--color-primary-700)] px-2 py-3 mb-2"
-        >
-          <Image
-            src="/logo.png"
-            alt="TCE Reisen"
-            width={300}
-            height={153}
-            className="h-10 w-auto"
-            priority
-          />
-          <span>Startklar</span>
-        </Link>
+        <div className="flex items-center justify-between px-2 py-3 mb-2">
+          <Link
+            href="/"
+            className="flex items-center gap-2.5 font-extrabold text-[var(--color-primary-700)]"
+          >
+            <Image
+              src="/logo.png"
+              alt="TCE Reisen"
+              width={300}
+              height={153}
+              className="h-10 w-auto"
+              priority
+            />
+            <span>Startklar</span>
+          </Link>
+          <Glocke initialAnzahl={ungeleseneAnzahl} />
+        </div>
 
         <SidebarNav />
 
@@ -79,7 +89,8 @@ export default async function AppLayout({
         <span className="font-extrabold text-[var(--color-primary-700)]">
           Startklar
         </span>
-        <div className="ml-auto">
+        <div className="ml-auto flex items-center gap-1">
+          <Glocke initialAnzahl={ungeleseneAnzahl} />
           <MobileNav mitarbeiterName={mitarbeiter.name} />
         </div>
       </div>
