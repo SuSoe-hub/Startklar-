@@ -52,11 +52,19 @@ model Mitarbeiter {
   // Nur ein Admin darf die (Erst-)PIN anderer Mitarbeiter vergeben/zurücksetzen
   // (siehe Bugfix: Erstvergabe war zuvor für jeden frei möglich).
   istAdmin      Boolean       @default(false)
-  vorgaenge     Vorgang[]
+  vorgaenge     Vorgang[]     @relation("VorgangBerater")
+  vorgaengeErstellt Vorgang[] @relation("VorgangErstelltVon")
   anwesenheiten Anwesenheit[]
   sessions      Session[]
   notizen       Notiz[]
   createdAt     DateTime      @default(now())
+
+  // Für die Benachrichtigungsglocke: Vorgänge, die jemand anders für diesen
+  // Mitarbeiter angelegt hat und die nach diesem Zeitpunkt erstellt wurden,
+  // gelten als ungelesen. Default `now()` verhindert, dass beim Rollout
+  // dieses Felds sämtliche Alt-Vorgänge auf einen Schlag als ungelesen
+  // markiert werden.
+  benachrichtigungenGelesenAm DateTime @default(now())
 }
 
 model Session {
@@ -99,8 +107,12 @@ model Vorgang {
   id             String        @id @default(cuid())
   kunde          Kunde         @relation(fields: [kundeId], references: [id])
   kundeId        String
-  berater        Mitarbeiter   @relation(fields: [beraterId], references: [id])
+  berater        Mitarbeiter   @relation("VorgangBerater", fields: [beraterId], references: [id])
   beraterId      String
+  // Wer den Vorgang angelegt hat - weicht vom Berater ab, wenn jemand einen
+  // Vorgang für eine Kollegin/einen Kollegen anlegt (siehe Benachrichtigungsglocke).
+  erstelltVon    Mitarbeiter?  @relation("VorgangErstelltVon", fields: [erstelltVonId], references: [id])
+  erstelltVonId  String?
   erstelltAm     DateTime      @default(now())
   updatedAt      DateTime      @updatedAt
   kanal          Kanal
@@ -127,6 +139,7 @@ model Vorgang {
 
   @@index([kundeId])
   @@index([beraterId])
+  @@index([erstelltVonId])
   @@index([status])
   @@index([wiedervorlage])
   @@index([optionsfrist])
