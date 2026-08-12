@@ -39,6 +39,7 @@ const STATUS_LABEL: Record<string, string> = {
   NACHFASSEN: "Nachfassen",
   GEBUCHT: "Gebucht",
   VERLOREN: "Verloren",
+  ERLEDIGT: "Erledigt",
 };
 
 const KANAL_LABEL: Record<string, string> = {
@@ -73,16 +74,26 @@ export default function KundenListe({
   // Eine Option hat eine echte Frist und kann im Zweifel Geld kosten -
   // deshalb darf ein Kunde mit offener Option nie durch einen Filter aus der
   // Liste verschwinden (siehe StartseiteFilter.tsx für dieselbe Regel).
+  //
+  // "Erledigt" ist kein echter VorgangStatus, sondern fasst Gebucht und
+  // Verloren zusammen (gleiche Definition wie kundeIstErledigt in
+  // kundenstatus.ts).
   const nachFilter = useMemo(() => {
     if (!filterAktiv) return nachTab;
     return nachTab.filter((k) =>
-      k.vorgaenge.some(
-        (v) =>
+      k.vorgaenge.some((v) => {
+        const statusPasst =
+          !status ||
+          (status === "ERLEDIGT"
+            ? v.status === "GEBUCHT" || v.status === "VERLOREN"
+            : v.status === status);
+        return (
           v.status === "OPTION" ||
-          ((!status || v.status === status) &&
+          (statusPasst &&
             (!kanal || v.kanal === kanal) &&
             (!beraterId || v.beraterId === beraterId))
-      )
+        );
+      })
     );
   }, [nachTab, filterAktiv, status, kanal, beraterId]);
 
