@@ -1068,10 +1068,15 @@ export async function holeUngeleseneAnzahl(): Promise<number> {
 export async function holeUngeleseneVorgaenge(): Promise<UngeleseneVorgang[]> {
   const mitarbeiter = await getAktuellerMitarbeiter();
   if (!mitarbeiter) return [];
-  return ladeUngeleseneVorgaenge(
-    mitarbeiter.id,
-    mitarbeiter.benachrichtigungenGelesenAm
-  );
+  try {
+    return await ladeUngeleseneVorgaenge(
+      mitarbeiter.id,
+      mitarbeiter.benachrichtigungenGelesenAm
+    );
+  } catch (error) {
+    console.error("Glocke: Vorgänge konnten nicht geladen werden.", error);
+    return [];
+  }
 }
 
 export async function holeOffeneKollegenNotizen(): Promise<
@@ -1079,7 +1084,12 @@ export async function holeOffeneKollegenNotizen(): Promise<
 > {
   const mitarbeiter = await getAktuellerMitarbeiter();
   if (!mitarbeiter) return [];
-  return ladeOffeneKollegenNotizen(mitarbeiter.id);
+  try {
+    return await ladeOffeneKollegenNotizen(mitarbeiter.id);
+  } catch (error) {
+    console.error("Glocke: Notizen konnten nicht geladen werden.", error);
+    return [];
+  }
 }
 
 export async function markiereBenachrichtigungenGelesen() {

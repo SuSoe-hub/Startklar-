@@ -85,10 +85,19 @@ export async function ladeOffeneKollegenNotizen(
   });
 }
 
+// Läuft im Root-Layout auf jeder einzelnen Seite mit - ein Datenbank-Hänger
+// hier darf niemals die ganze App unbenutzbar machen, deshalb wird ein
+// Fehler abgefangen und die Glocke zeigt im Zweifel einfach 0 an, statt die
+// komplette Seite mit hochzureißen.
 export async function zaehleGlockenAnzahl(mitarbeiterId: string, seit: Date) {
-  const [vorgaenge, notizen] = await Promise.all([
-    zaehleUngeleseneVorgaenge(mitarbeiterId, seit),
-    zaehleOffeneKollegenNotizen(mitarbeiterId),
-  ]);
-  return vorgaenge + notizen;
+  try {
+    const [vorgaenge, notizen] = await Promise.all([
+      zaehleUngeleseneVorgaenge(mitarbeiterId, seit),
+      zaehleOffeneKollegenNotizen(mitarbeiterId),
+    ]);
+    return vorgaenge + notizen;
+  } catch (error) {
+    console.error("Glocke: Anzahl konnte nicht geladen werden.", error);
+    return 0;
+  }
 }
