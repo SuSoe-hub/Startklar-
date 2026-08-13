@@ -43,3 +43,52 @@ export async function ladeUngeleseneVorgaenge(
     },
   });
 }
+
+// Notizen, die Kolleg:innen füreinander zu (meist bereits abgeschlossenen)
+// Buchungen hinterlassen, die nicht als Vorgang in Startklar existieren.
+// Anders als bei Vorgängen zählt hier nicht "seit zuletzt angeschaut",
+// sondern "noch nicht erledigt" - die Notiz ist eine offene Aufgabe für
+// die Empfängerin/den Empfänger, kein einmaliger Hinweis.
+export function offeneKollegenNotizenWhere(mitarbeiterId: string) {
+  return { fuerId: mitarbeiterId, erledigtAm: null } as const;
+}
+
+export async function zaehleOffeneKollegenNotizen(mitarbeiterId: string) {
+  return prisma.kollegenNotiz.count({
+    where: offeneKollegenNotizenWhere(mitarbeiterId),
+  });
+}
+
+export type OffeneKollegenNotiz = {
+  id: string;
+  kundenname: string;
+  argusNummer: string | null;
+  text: string;
+  erstelltAm: Date;
+  von: { name: string };
+};
+
+export async function ladeOffeneKollegenNotizen(
+  mitarbeiterId: string
+): Promise<OffeneKollegenNotiz[]> {
+  return prisma.kollegenNotiz.findMany({
+    where: offeneKollegenNotizenWhere(mitarbeiterId),
+    orderBy: { erstelltAm: "desc" },
+    select: {
+      id: true,
+      kundenname: true,
+      argusNummer: true,
+      text: true,
+      erstelltAm: true,
+      von: { select: { name: true } },
+    },
+  });
+}
+
+export async function zaehleGlockenAnzahl(mitarbeiterId: string, seit: Date) {
+  const [vorgaenge, notizen] = await Promise.all([
+    zaehleUngeleseneVorgaenge(mitarbeiterId, seit),
+    zaehleOffeneKollegenNotizen(mitarbeiterId),
+  ]);
+  return vorgaenge + notizen;
+}

@@ -58,6 +58,8 @@ model Mitarbeiter {
   anwesenheiten Anwesenheit[]
   sessions      Session[]
   notizen       Notiz[]
+  kollegenNotizenVon  KollegenNotiz[] @relation("KollegenNotizVon")
+  kollegenNotizenFuer KollegenNotiz[] @relation("KollegenNotizFuer")
   createdAt     DateTime      @default(now())
 
   // Für die Benachrichtigungsglocke: Vorgänge, die jemand anders für diesen
@@ -169,4 +171,25 @@ model Notiz {
   mitarbeiterId String?
 
   @@index([vorgangId])
+}
+
+// Notiz für einen Kollegen zu einer Buchung, die nicht (mehr) als Vorgang in
+// Startklar existiert, weil sie schon abgeschlossen und nur noch in Argus zu
+// finden ist. Bewusst ohne Verknüpfung zu Kunde/Vorgang - Kundenname und
+// Argus-Nummer sind daher Freitext.
+model KollegenNotiz {
+  id           String       @id @default(cuid())
+  kundenname   String
+  argusNummer  String?
+  text         String
+  von          Mitarbeiter  @relation("KollegenNotizVon", fields: [vonId], references: [id])
+  vonId        String
+  fuer         Mitarbeiter  @relation("KollegenNotizFuer", fields: [fuerId], references: [id])
+  fuerId       String
+  erstelltAm   DateTime     @default(now())
+  bearbeitetAm DateTime?
+  erledigtAm   DateTime?
+
+  @@index([vonId])
+  @@index([fuerId])
 }

@@ -6,7 +6,7 @@ import { getAktuellerMitarbeiter } from "@/lib/auth";
 import { logout } from "@/lib/auth-actions";
 import { prisma } from "@/lib/prisma";
 import { ANWESENHEIT_GEFRAGT_COOKIE, heutigesDatumString } from "@/lib/teampool";
-import { zaehleUngeleseneVorgaenge } from "@/lib/benachrichtigung";
+import { zaehleGlockenAnzahl } from "@/lib/benachrichtigung";
 import SidebarNav from "@/components/SidebarNav";
 import MobileNav from "@/components/MobileNav";
 import Glocke from "@/components/Glocke";
@@ -37,7 +37,7 @@ export default async function AppLayout({
     return <AnwesenheitsPflichtfrage mitarbeiter={mitarbeiter} />;
   }
 
-  const ungeleseneAnzahl = await zaehleUngeleseneVorgaenge(
+  const ungeleseneAnzahl = await zaehleGlockenAnzahl(
     mitarbeiter.id,
     mitarbeiter.benachrichtigungenGelesenAm
   );
