@@ -5,9 +5,14 @@ import Link from "next/link";
 import {
   holeUngeleseneAnzahl,
   holeUngeleseneVorgaenge,
+  holeOffeneKollegenNotizen,
   markiereBenachrichtigungenGelesen,
+  erledigeKollegenNotiz,
 } from "@/lib/actions";
-import type { UngeleseneVorgang } from "@/lib/benachrichtigung";
+import type {
+  UngeleseneVorgang,
+  OffeneKollegenNotiz,
+} from "@/lib/benachrichtigung";
 import { BERLIN_TZ } from "@/lib/zeit";
 
 const POLL_INTERVALL_MS = 30_000;
@@ -16,6 +21,7 @@ export default function Glocke({ initialAnzahl }: { initialAnzahl: number }) {
   const [anzahl, setAnzahl] = useState(initialAnzahl);
   const [offen, setOffen] = useState(false);
   const [vorgaenge, setVorgaenge] = useState<UngeleseneVorgang[] | null>(null);
+  const [notizen, setNotizen] = useState<OffeneKollegenNotiz[] | null>(null);
   const [ladeVorgaenge, setLadeVorgaenge] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -53,14 +59,26 @@ export default function Glocke({ initialAnzahl }: { initialAnzahl: number }) {
     if (!wirdGeoeffnet) return;
 
     setLadeVorgaenge(true);
-    const liste = await holeUngeleseneVorgaenge();
-    setVorgaenge(liste);
+    const [vorgangsListe, notizenListe] = await Promise.all([
+      holeUngeleseneVorgaenge(),
+      holeOffeneKollegenNotizen(),
+    ]);
+    setVorgaenge(vorgangsListe);
+    setNotizen(notizenListe);
     setLadeVorgaenge(false);
 
-    if (liste.length > 0) {
+    if (vorgangsListe.length > 0) {
       await markiereBenachrichtigungenGelesen();
-      setAnzahl(0);
     }
+    // Kollegen-Notizen zählen weiter mit, bis sie erledigt sind - "gesehen"
+    // reicht hier nicht, siehe lib/benachrichtigung.ts.
+    setAnzahl(notizenListe.length);
+  }
+
+  async function notizErledigen(notizId: string) {
+    setNotizen((liste) => liste?.filter((n) => n.id !== notizId) ?? liste);
+    setAnzahl((a) => Math.max(0, a - 1));
+    await erledigeKollegenNotiz(notizId, { error: null }, new FormData());
   }
 
   return (
@@ -68,7 +86,7 @@ export default function Glocke({ initialAnzahl }: { initialAnzahl: number }) {
       <button
         type="button"
         onClick={umschalten}
-        aria-label={anzahl > 0 ? `${anzahl} neue Vorgänge` : "Benachrichtigungen"}
+        aria-label={anzahl > 0 ? `${anzahl} neue Benachrichtigungen` : "Benachrichtigungen"}
         className="relative p-2 -m-2 rounded-full hover:bg-[var(--color-primary-50)] text-xl leading-none"
       >
         🔔
@@ -115,6 +133,49 @@ export default function Glocke({ initialAnzahl }: { initialAnzahl: number }) {
                 </div>
               </Link>
             ))}
+
+          <h3 className="text-sm font-semibold px-2 py-1 mt-2 text-[var(--color-muted)]">
+            Notizen von Kolleg:innen
+          </h3>
+          {!ladeVorgaenge && notizen?.length === 0 && (
+            <p className="text-sm px-2 py-2 text-[var(--color-muted)]">
+              Keine offenen Notizen.
+            </p>
+          )}
+          {!ladeVorgaenge &&
+            notizen?.map((n) => (
+              <div key={n.id} className="px-2 py-2 rounded-lg hover:bg-[var(--color-primary-50)]">
+                <div className="text-sm font-semibold">
+                  {n.kundenname}
+                  {n.argusNummer && ` · Argus ${n.argusNummer}`}
+                </div>
+                <div className="text-sm">{n.text}</div>
+                <div className="text-xs text-[var(--color-muted)] mt-0.5">
+                  von {n.von.name} ·{" "}
+                  {n.erstelltAm.toLocaleString("de-DE", {
+                    timeZone: BERLIN_TZ,
+                    day: "2-digit",
+                    month: "2-digit",
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  })}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => notizErledigen(n.id)}
+                  className="link text-xs mt-1"
+                >
+                  Erledigt
+                </button>
+              </div>
+            ))}
+          <Link
+            href="/kollegen-notizen"
+            onClick={() => setOffen(false)}
+            className="block px-2 py-2 mt-1 text-xs link"
+          >
+            Alle Kollegen-Notizen →
+          </Link>
         </div>
       )}
     </div>

@@ -8,9 +8,11 @@ import { heutigesDatumString, ANWESENHEIT_GEFRAGT_COOKIE } from "@/lib/teampool"
 import { getAktuellerMitarbeiter } from "@/lib/auth";
 import { parseBerlinDatetimeLocal, BERLIN_TZ } from "@/lib/zeit";
 import {
-  zaehleUngeleseneVorgaenge,
   ladeUngeleseneVorgaenge,
+  zaehleGlockenAnzahl,
+  ladeOffeneKollegenNotizen,
   type UngeleseneVorgang,
+  type OffeneKollegenNotiz,
 } from "@/lib/benachrichtigung";
 import {
   pruefeErsterVorgang,
@@ -1052,11 +1054,12 @@ export async function uebernehmeVorgang(
 }
 
 // Benachrichtigungsglocke: zeigt Vorgänge, die jemand anders für den aktuell
-// angemeldeten Mitarbeiter angelegt hat (siehe lib/benachrichtigung.ts).
+// angemeldeten Mitarbeiter angelegt hat, plus offene Kollegen-Notizen
+// (siehe lib/benachrichtigung.ts).
 export async function holeUngeleseneAnzahl(): Promise<number> {
   const mitarbeiter = await getAktuellerMitarbeiter();
   if (!mitarbeiter) return 0;
-  return zaehleUngeleseneVorgaenge(
+  return zaehleGlockenAnzahl(
     mitarbeiter.id,
     mitarbeiter.benachrichtigungenGelesenAm
   );
@@ -1071,6 +1074,14 @@ export async function holeUngeleseneVorgaenge(): Promise<UngeleseneVorgang[]> {
   );
 }
 
+export async function holeOffeneKollegenNotizen(): Promise<
+  OffeneKollegenNotiz[]
+> {
+  const mitarbeiter = await getAktuellerMitarbeiter();
+  if (!mitarbeiter) return [];
+  return ladeOffeneKollegenNotizen(mitarbeiter.id);
+}
+
 export async function markiereBenachrichtigungenGelesen() {
   const mitarbeiter = await getAktuellerMitarbeiter();
   if (!mitarbeiter) return;
@@ -1078,4 +1089,136 @@ export async function markiereBenachrichtigungenGelesen() {
     where: { id: mitarbeiter.id },
     data: { benachrichtigungenGelesenAm: new Date() },
   });
+}
+
+// Notiz für einen Kollegen zu einer Buchung, die nicht als Vorgang in
+// Startklar existiert (z.B. schon abgeschlossen und nur noch in Argus zu
+// finden) - siehe lib/benachrichtigung.ts für die Glocken-Zählung.
+export type KollegenNotizFormState = { error: string | null };
+
+export async function addKollegenNotiz(
+  _prevState: KollegenNotizFormState,
+  formData: FormData
+): Promise<KollegenNotizFormState> {
+  const kundenname = ((formData.get("kundenname") as string) ?? "").trim();
+  const argusNummer = ((formData.get("argusNummer") as string) ?? "").trim();
+  const text = ((formData.get("text") as string) ?? "").trim();
+  const fuerId = (formData.get("fuerId") as string) ?? "";
+
+  if (!kundenname) {
+    return { error: "Bitte Kundennamen angeben." };
+  }
+  if (!text) {
+    return { error: "Notiz darf nicht leer sein." };
+  }
+  if (!fuerId) {
+    return { error: "Bitte Kolleg:in auswählen." };
+  }
+
+  const mitarbeiter = await getAktuellerMitarbeiter();
+  if (!mitarbeiter) {
+    return {
+      error: "Sitzung abgelaufen. Bitte neu einloggen und erneut versuchen.",
+    };
+  }
+
+  await prisma.kollegenNotiz.create({
+    data: {
+      kundenname,
+      argusNummer: argusNummer || null,
+      text,
+      vonId: mitarbeiter.id,
+      fuerId,
+    },
+  });
+
+  revalidatePath("/kollegen-notizen");
+  return { error: null };
+}
+
+export type UpdateKollegenNotizFormState = {
+  error: string | null;
+  kundenname: string;
+  argusNummer: string;
+  text: string;
+};
+
+export async function updateKollegenNotiz(
+  notizId: string,
+  _prevState: UpdateKollegenNotizFormState,
+  formData: FormData
+): Promise<UpdateKollegenNotizFormState> {
+  const kundenname = ((formData.get("kundenname") as string) ?? "").trim();
+  const argusNummer = ((formData.get("argusNummer") as string) ?? "").trim();
+  const rawText = (formData.get("text") as string) ?? "";
+  const text = rawText.trim();
+  const werte = { kundenname, argusNummer, text: rawText };
+
+  if (!kundenname) {
+    return { error: "Bitte Kundennamen angeben.", ...werte };
+  }
+  if (!text) {
+    return { error: "Notiz darf nicht leer sein.", ...werte };
+  }
+
+  const mitarbeiter = await getAktuellerMitarbeiter();
+  const notiz = await prisma.kollegenNotiz.findUnique({
+    where: { id: notizId },
+  });
+  if (!notiz || !mitarbeiter || notiz.vonId !== mitarbeiter.id) {
+    return { error: "Diese Notiz darfst du nicht bearbeiten.", ...werte };
+  }
+
+  await prisma.kollegenNotiz.update({
+    where: { id: notizId },
+    data: { kundenname, argusNummer: argusNummer || null, text, bearbeitetAm: new Date() },
+  });
+
+  revalidatePath("/kollegen-notizen");
+  return { error: null, kundenname, argusNummer, text };
+}
+
+export type DeleteKollegenNotizFormState = { error: string | null };
+
+export async function deleteKollegenNotiz(
+  notizId: string,
+  _prevState: DeleteKollegenNotizFormState,
+  _formData: FormData
+): Promise<DeleteKollegenNotizFormState> {
+  const mitarbeiter = await getAktuellerMitarbeiter();
+  const notiz = await prisma.kollegenNotiz.findUnique({
+    where: { id: notizId },
+  });
+  if (!notiz || !mitarbeiter || notiz.vonId !== mitarbeiter.id) {
+    return { error: "Diese Notiz darfst du nicht löschen." };
+  }
+
+  await prisma.kollegenNotiz.delete({ where: { id: notizId } });
+
+  revalidatePath("/kollegen-notizen");
+  return { error: null };
+}
+
+export type ErledigeKollegenNotizFormState = { error: string | null };
+
+export async function erledigeKollegenNotiz(
+  notizId: string,
+  _prevState: ErledigeKollegenNotizFormState,
+  _formData: FormData
+): Promise<ErledigeKollegenNotizFormState> {
+  const mitarbeiter = await getAktuellerMitarbeiter();
+  const notiz = await prisma.kollegenNotiz.findUnique({
+    where: { id: notizId },
+  });
+  if (!notiz || !mitarbeiter || notiz.fuerId !== mitarbeiter.id) {
+    return { error: "Diese Notiz darfst du nicht erledigen." };
+  }
+
+  await prisma.kollegenNotiz.update({
+    where: { id: notizId },
+    data: { erledigtAm: new Date() },
+  });
+
+  revalidatePath("/kollegen-notizen");
+  return { error: null };
 }
