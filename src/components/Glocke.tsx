@@ -17,7 +17,17 @@ import { BERLIN_TZ } from "@/lib/zeit";
 
 const POLL_INTERVALL_MS = 30_000;
 
-export default function Glocke({ initialAnzahl }: { initialAnzahl: number }) {
+export default function Glocke({
+  initialAnzahl,
+  menuAlign = "right",
+}: {
+  initialAnzahl: number;
+  // In der schmalen Desktop-Seitenleiste sitzt die Glocke nah am linken
+  // Bildschirmrand - ein rechtsbündiges Menü würde dort über den Rand
+  // hinausragen und links abgeschnitten wirken. "left" öffnet es stattdessen
+  // nach rechts in den Hauptbereich hinein.
+  menuAlign?: "left" | "right";
+}) {
   const [anzahl, setAnzahl] = useState(initialAnzahl);
   const [offen, setOffen] = useState(false);
   const [vorgaenge, setVorgaenge] = useState<UngeleseneVorgang[] | null>(null);
@@ -98,7 +108,11 @@ export default function Glocke({ initialAnzahl }: { initialAnzahl: number }) {
       </button>
 
       {offen && (
-        <div className="absolute right-0 mt-2 w-72 max-h-96 overflow-y-auto card p-2 shadow-lg z-30 bg-white">
+        <div
+          className={`absolute ${
+            menuAlign === "left" ? "left-0" : "right-0"
+          } mt-2 w-72 max-h-96 overflow-y-auto card p-2 shadow-lg z-30 bg-white`}
+        >
           <h3 className="text-sm font-semibold px-2 py-1 text-[var(--color-muted)]">
             Neue Vorgänge
           </h3>

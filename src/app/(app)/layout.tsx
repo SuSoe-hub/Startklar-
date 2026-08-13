@@ -60,7 +60,7 @@ export default async function AppLayout({
             />
             <span>Startklar</span>
           </Link>
-          <Glocke initialAnzahl={ungeleseneAnzahl} />
+          <Glocke initialAnzahl={ungeleseneAnzahl} menuAlign="left" />
         </div>
 
         <SidebarNav />
