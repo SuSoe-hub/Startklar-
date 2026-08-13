@@ -113,76 +113,73 @@ export default function Glocke({
             menuAlign === "left" ? "left-0" : "right-0"
           } mt-2 w-72 max-h-96 overflow-y-auto card p-2 shadow-lg z-30 bg-white`}
         >
-          <h3 className="text-sm font-semibold px-2 py-1 text-[var(--color-muted)]">
-            Neue Vorgänge
-          </h3>
           {ladeVorgaenge && (
             <p className="text-sm px-2 py-2 text-[var(--color-muted)]">Lädt…</p>
           )}
-          {!ladeVorgaenge && vorgaenge?.length === 0 && (
-            <p className="text-sm px-2 py-2 text-[var(--color-muted)]">
-              Keine neuen Vorgänge.
-            </p>
-          )}
-          {!ladeVorgaenge &&
-            vorgaenge?.map((v) => (
-              <Link
-                key={v.id}
-                href={`/vorgaenge/${v.id}`}
-                onClick={() => setOffen(false)}
-                className="block px-2 py-2 rounded-lg hover:bg-[var(--color-primary-50)]"
-              >
-                <div className="text-sm font-semibold">
-                  {v.kunde.vorname} {v.kunde.nachname}
-                </div>
-                <div className="text-xs text-[var(--color-muted)]">
-                  {v.erstelltVon ? `von ${v.erstelltVon.name}` : "neu angelegt"} ·{" "}
-                  {v.erstelltAm.toLocaleString("de-DE", {
-                    timeZone: BERLIN_TZ,
-                    day: "2-digit",
-                    month: "2-digit",
-                    hour: "2-digit",
-                    minute: "2-digit",
-                  })}
-                </div>
-              </Link>
-            ))}
 
-          <h3 className="text-sm font-semibold px-2 py-1 mt-2 text-[var(--color-muted)]">
-            Notizen von Kolleg:innen
-          </h3>
-          {!ladeVorgaenge && notizen?.length === 0 && (
-            <p className="text-sm px-2 py-2 text-[var(--color-muted)]">
-              Keine offenen Notizen.
-            </p>
-          )}
-          {!ladeVorgaenge &&
-            notizen?.map((n) => (
-              <div key={n.id} className="px-2 py-2 rounded-lg hover:bg-[var(--color-primary-50)]">
-                <div className="text-sm font-semibold">
-                  {n.kundenname}
-                  {n.argusNummer && ` · Argus ${n.argusNummer}`}
-                </div>
-                <div className="text-sm">{n.text}</div>
-                <div className="text-xs text-[var(--color-muted)] mt-0.5">
-                  von {n.von.name} ·{" "}
-                  {n.erstelltAm.toLocaleString("de-DE", {
-                    timeZone: BERLIN_TZ,
-                    day: "2-digit",
-                    month: "2-digit",
-                    hour: "2-digit",
-                    minute: "2-digit",
-                  })}
-                </div>
-                <button
-                  type="button"
-                  onClick={() => notizErledigen(n.id)}
-                  className="link text-xs mt-1"
+          {!ladeVorgaenge && !!vorgaenge?.length && (
+            <>
+              <h3 className="text-sm font-semibold px-2 py-1 text-[var(--color-muted)]">
+                Neue Vorgänge
+              </h3>
+              {vorgaenge.map((v) => (
+                <Link
+                  key={v.id}
+                  href={`/vorgaenge/${v.id}`}
+                  onClick={() => setOffen(false)}
+                  className="block px-2 py-2 rounded-lg hover:bg-[var(--color-primary-50)]"
                 >
-                  Erledigt
-                </button>
-              </div>
-            ))}
+                  <div className="text-sm font-semibold">
+                    {v.kunde.vorname} {v.kunde.nachname}
+                  </div>
+                  <div className="text-xs text-[var(--color-muted)]">
+                    {v.erstelltVon ? `von ${v.erstelltVon.name}` : "neu angelegt"} ·{" "}
+                    {v.erstelltAm.toLocaleString("de-DE", {
+                      timeZone: BERLIN_TZ,
+                      day: "2-digit",
+                      month: "2-digit",
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })}
+                  </div>
+                </Link>
+              ))}
+            </>
+          )}
+
+          {!ladeVorgaenge && !!notizen?.length && (
+            <>
+              <h3 className="text-sm font-semibold px-2 py-1 mt-2 text-[var(--color-muted)]">
+                Notizen von Kolleg:innen
+              </h3>
+              {notizen.map((n) => (
+                <div key={n.id} className="px-2 py-2 rounded-lg hover:bg-[var(--color-primary-50)]">
+                  <div className="text-sm font-semibold">
+                    {n.kundenname}
+                    {n.argusNummer && ` · Argus ${n.argusNummer}`}
+                  </div>
+                  <div className="text-sm">{n.text}</div>
+                  <div className="text-xs text-[var(--color-muted)] mt-0.5">
+                    von {n.von.name} ·{" "}
+                    {n.erstelltAm.toLocaleString("de-DE", {
+                      timeZone: BERLIN_TZ,
+                      day: "2-digit",
+                      month: "2-digit",
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => notizErledigen(n.id)}
+                    className="link text-xs mt-1"
+                  >
+                    Erledigt
+                  </button>
+                </div>
+              ))}
+            </>
+          )}
           <Link
             href="/kollegen-notizen"
             onClick={() => setOffen(false)}
