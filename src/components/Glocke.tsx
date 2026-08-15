@@ -3,54 +3,33 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import {
-  holeUngeleseneAnzahl,
   holeUngeleseneVorgaenge,
   holeOffeneKollegenNotizen,
   markiereBenachrichtigungenGelesen,
   erledigeKollegenNotiz,
 } from "@/lib/actions";
+import { useGlockenAnzahl } from "@/components/GlockeProvider";
 import type {
   UngeleseneVorgang,
   OffeneKollegenNotiz,
 } from "@/lib/benachrichtigung";
 import { BERLIN_TZ } from "@/lib/zeit";
 
-const POLL_INTERVALL_MS = 30_000;
-
 export default function Glocke({
-  initialAnzahl,
   menuAlign = "right",
 }: {
-  initialAnzahl: number;
   // In der schmalen Desktop-Seitenleiste sitzt die Glocke nah am linken
   // Bildschirmrand - ein rechtsbündiges Menü würde dort über den Rand
   // hinausragen und links abgeschnitten wirken. "left" öffnet es stattdessen
   // nach rechts in den Hauptbereich hinein.
   menuAlign?: "left" | "right";
 }) {
-  const [anzahl, setAnzahl] = useState(initialAnzahl);
+  const { anzahl, setAnzahl } = useGlockenAnzahl();
   const [offen, setOffen] = useState(false);
   const [vorgaenge, setVorgaenge] = useState<UngeleseneVorgang[] | null>(null);
   const [notizen, setNotizen] = useState<OffeneKollegenNotiz[] | null>(null);
   const [ladeVorgaenge, setLadeVorgaenge] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
-
-  // Solange die Seite offen ist, regelmäßig neu abfragen - Server-Actions
-  // sind hier einfacher als ein eigener WebSocket-/SSE-Server, kommen aber
-  // erst mit der nächsten Abfrage an, nicht sofort.
-  useEffect(() => {
-    let abgebrochen = false;
-    const aktualisieren = () => {
-      holeUngeleseneAnzahl().then((n) => {
-        if (!abgebrochen) setAnzahl(n);
-      });
-    };
-    const intervall = setInterval(aktualisieren, POLL_INTERVALL_MS);
-    return () => {
-      abgebrochen = true;
-      clearInterval(intervall);
-    };
-  }, []);
 
   useEffect(() => {
     if (!offen) return;
