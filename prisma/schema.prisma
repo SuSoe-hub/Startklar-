@@ -43,6 +43,11 @@ enum Buchungsweg {
   SCHRIFTLICH
 }
 
+enum Ort {
+  BUERO
+  HOMEOFFICE
+}
+
 model Mitarbeiter {
   id            String        @id @default(cuid())
   name          String        @unique
@@ -87,6 +92,14 @@ model Anwesenheit {
   datum         String
   mitarbeiter   Mitarbeiter @relation(fields: [mitarbeiterId], references: [id])
   mitarbeiterId String
+
+  // Zeiterfassung Homeoffice (siehe Startklar_Erweiterung_Zeiterfassung_Homeoffice.md)
+  // ort ist null bei "Nein, heute nicht da" (dafür wird ohnehin keine Zeile
+  // angelegt) - hier nur zur Vollständigkeit optional, da das Feld erst mit
+  // dieser Erweiterung dazukam und bestehende Zeilen keinen Ort haben.
+  ort        Ort?
+  loginZeit  DateTime?
+  logoutZeit DateTime?
 
   @@unique([datum, mitarbeiterId])
 }

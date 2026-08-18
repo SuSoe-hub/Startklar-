@@ -7,8 +7,10 @@ import SidebarNav from "./SidebarNav";
 
 export default function MobileNav({
   mitarbeiterName,
+  istAdmin = false,
 }: {
   mitarbeiterName: string;
+  istAdmin?: boolean;
 }) {
   const [offen, setOffen] = useState(false);
   const pathname = usePathname();
@@ -31,7 +33,7 @@ export default function MobileNav({
 
       {offen && (
         <div className="fixed inset-x-0 top-14 z-20 bg-white border-b border-[var(--color-border)] p-4 flex flex-col gap-3 shadow-md">
-          <SidebarNav />
+          <SidebarNav istAdmin={istAdmin} />
           <div className="flex items-center justify-between gap-2 pt-3 border-t border-[var(--color-border)]">
             <span className="text-sm font-bold text-[var(--color-muted)]">
               {mitarbeiterName}

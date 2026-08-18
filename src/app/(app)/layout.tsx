@@ -65,7 +65,7 @@ export default async function AppLayout({
             <Glocke menuAlign="left" />
           </div>
 
-          <SidebarNav />
+          <SidebarNav istAdmin={mitarbeiter.istAdmin} />
 
           <div className="mt-auto flex flex-col gap-2 pt-4 border-t border-[var(--color-border)]">
             <span className="px-2 text-sm font-bold text-[var(--color-muted)]">
@@ -93,7 +93,10 @@ export default async function AppLayout({
           </span>
           <div className="ml-auto flex items-center gap-1">
             <Glocke />
-            <MobileNav mitarbeiterName={mitarbeiter.name} />
+            <MobileNav
+              mitarbeiterName={mitarbeiter.name}
+              istAdmin={mitarbeiter.istAdmin}
+            />
           </div>
         </div>
 

@@ -945,7 +945,15 @@ export async function removeVeranstalter(
 // Nur der eingeloggte Mitarbeiter darf sich selbst als anwesend markieren -
 // serverseitig geprüft, damit sich niemand über einen fremden Klick oder
 // einen direkten Aufruf für einen Kollegen "eintragen" kann.
-export async function markiereAnwesend(mitarbeiterId: string) {
+// ort + loginZeit siehe Startklar_Erweiterung_Zeiterfassung_Homeoffice.md:
+// Zeiterfassung (loginZeit) läuft nur bei Homeoffice - Büro-Tage werden nur
+// für die Anwesenheits-/Umverteilungslogik erfasst, ohne Login-Zeit. Ein
+// erneuter Klick auf eine bereits bestehende Zeile verändert die Login-Zeit
+// nicht mehr.
+export async function markiereAnwesend(
+  mitarbeiterId: string,
+  ort: "BUERO" | "HOMEOFFICE"
+) {
   const aktuellerMitarbeiter = await getAktuellerMitarbeiter();
   if (!aktuellerMitarbeiter || aktuellerMitarbeiter.id !== mitarbeiterId) {
     return;
@@ -956,7 +964,12 @@ export async function markiereAnwesend(mitarbeiterId: string) {
   await prisma.anwesenheit.upsert({
     where: { datum_mitarbeiterId: { datum, mitarbeiterId } },
     update: {},
-    create: { datum, mitarbeiterId },
+    create: {
+      datum,
+      mitarbeiterId,
+      ort,
+      loginZeit: ort === "HOMEOFFICE" ? new Date() : null,
+    },
   });
 
   revalidatePath("/", "layout");
@@ -974,6 +987,65 @@ export async function entferneAnwesend(mitarbeiterId: string) {
   await prisma.anwesenheit.deleteMany({ where: { datum, mitarbeiterId } });
 
   revalidatePath("/", "layout");
+}
+
+// "Feierabend"-Knopf: bewusster, eigener Klick statt geratener Logout-Zeit
+// (siehe Startklar_Erweiterung_Zeiterfassung_Homeoffice.md, Punkt 3). Wird
+// bis Tagesende nicht geklickt, bleibt logoutZeit null - keine automatische
+// Vervollständigung. Nur für Homeoffice relevant, da nur dort eine loginZeit
+// gesetzt wird.
+export async function beendeArbeitstag(mitarbeiterId: string) {
+  const aktuellerMitarbeiter = await getAktuellerMitarbeiter();
+  if (!aktuellerMitarbeiter || aktuellerMitarbeiter.id !== mitarbeiterId) {
+    return;
+  }
+
+  const datum = heutigesDatumString(new Date());
+
+  await prisma.anwesenheit.updateMany({
+    where: { datum, mitarbeiterId, ort: "HOMEOFFICE", logoutZeit: null },
+    data: { logoutZeit: new Date() },
+  });
+
+  revalidatePath("/", "layout");
+}
+
+export type AnwesenheitKorrekturState = { error: string | null };
+
+// Nachträgliche Admin-Korrektur bei vergessenem "Feierabend"-Klick, für die
+// Homeoffice-Stundenabrechnung ab 01.09.2026 (siehe
+// Startklar_Erweiterung_Zeiterfassung_Homeoffice.md). Bewusst weiterhin kein
+// automatisches Raten - nur ein Admin darf einen fehlenden Logout manuell
+// eintragen, für jeden Mitarbeiter.
+export async function trageLogoutNach(
+  anwesenheitId: string,
+  _prevState: AnwesenheitKorrekturState,
+  formData: FormData
+): Promise<AnwesenheitKorrekturState> {
+  const admin = await getAktuellerMitarbeiter();
+  if (!admin?.istAdmin) {
+    return { error: "Nur Admins dürfen einen Logout nachtragen." };
+  }
+
+  const uhrzeit = (formData.get("uhrzeit") as string) ?? "";
+  if (!/^\d{2}:\d{2}$/.test(uhrzeit)) {
+    return { error: "Bitte eine gültige Uhrzeit angeben." };
+  }
+
+  const eintrag = await prisma.anwesenheit.findUnique({
+    where: { id: anwesenheitId },
+  });
+  if (!eintrag) {
+    return { error: "Eintrag nicht gefunden." };
+  }
+
+  await prisma.anwesenheit.update({
+    where: { id: anwesenheitId },
+    data: { logoutZeit: parseBerlinDatetimeLocal(`${eintrag.datum}T${uhrzeit}`) },
+  });
+
+  revalidatePath("/anwesenheit");
+  return { error: null };
 }
 
 // Antwort "Nein, heute nicht da" auf die Pflichtfrage direkt nach dem Login:

@@ -12,9 +12,9 @@ export default function AnwesenheitsPflichtfrage({
 }) {
   const [pending, startTransition] = useTransition();
 
-  function jaDa() {
+  function daImOrt(ort: "BUERO" | "HOMEOFFICE") {
     startTransition(() => {
-      markiereAnwesend(mitarbeiter.id);
+      markiereAnwesend(mitarbeiter.id, ort);
     });
   }
 
@@ -38,18 +38,26 @@ export default function AnwesenheitsPflichtfrage({
         <div>
           <p className="text-lg font-bold">Hallo {mitarbeiter.name}!</p>
           <p className="text-sm text-[var(--color-muted)] mt-1">
-            Bist du heute im Büro? So wissen wir, an wen fällige Vorgänge von
+            Bist du heute da? So wissen wir, an wen fällige Vorgänge von
             abwesenden Kolleg:innen verteilt werden können.
           </p>
         </div>
         <div className="flex flex-col gap-2 w-full">
           <button
             type="button"
-            onClick={jaDa}
+            onClick={() => daImOrt("BUERO")}
             disabled={pending}
             className="btn-primary w-full"
           >
-            {pending ? "…" : "Ja, ich bin da"}
+            {pending ? "…" : "Ja, im Büro"}
+          </button>
+          <button
+            type="button"
+            onClick={() => daImOrt("HOMEOFFICE")}
+            disabled={pending}
+            className="btn-primary w-full"
+          >
+            {pending ? "…" : "Ja, im Homeoffice"}
           </button>
           <button
             type="button"

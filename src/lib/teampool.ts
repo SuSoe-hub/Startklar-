@@ -10,6 +10,21 @@ export function heutigesDatumString(jetzt: Date) {
   )}`;
 }
 
+// Montag-Sonntag der Woche, in der `referenz` liegt, als "YYYY-MM-DD"-Strings
+// (gleiches Format wie Anwesenheit.datum) - für die wochenweise Anwesenheits-
+// Ansicht und deren CSV-Export.
+export function wochentage(referenz: Date): string[] {
+  const tag = referenz.getDay();
+  const montagOffset = tag === 0 ? -6 : 1 - tag;
+  const montag = new Date(referenz);
+  montag.setDate(referenz.getDate() + montagOffset);
+  return Array.from({ length: 7 }, (_, i) => {
+    const d = new Date(montag);
+    d.setDate(montag.getDate() + i);
+    return heutigesDatumString(d);
+  });
+}
+
 // Solange niemand angetippt hat, gilt niemand als abwesend – dann ist die
 // Anwesenheitsliste für den Tag "leer"
 // und die Abwesenheits-Umverteilung bleibt inaktiv.

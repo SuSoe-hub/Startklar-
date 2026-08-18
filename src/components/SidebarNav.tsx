@@ -11,12 +11,17 @@ const LINKS = [
   { href: "/rangliste", label: "Statistik" },
 ];
 
-export default function SidebarNav() {
+// Nur für Admins sichtbar - zeigt personenbezogene Login-/Logout-Zeiten
+// (siehe Startklar_Erweiterung_Zeiterfassung_Homeoffice.md, Punkt 4).
+const ADMIN_LINK = { href: "/anwesenheit", label: "Anwesenheit" };
+
+export default function SidebarNav({ istAdmin = false }: { istAdmin?: boolean }) {
   const pathname = usePathname();
+  const links = istAdmin ? [...LINKS, ADMIN_LINK] : LINKS;
 
   return (
     <nav className="flex flex-col gap-1">
-      {LINKS.map((link) => {
+      {links.map((link) => {
         const aktiv =
           link.href === "/"
             ? pathname === "/"

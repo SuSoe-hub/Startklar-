@@ -72,9 +72,11 @@ export default async function UebersichtPage() {
   // Jede Person markiert sich einzeln als anwesend - unabhängig davon, ob
   // Kolleg:innen das schon getan haben (vorher verschwand die ganze Abfrage
   // für alle, sobald irgendjemand geklickt hatte).
-  const bereitsAnwesend = aktuellerMitarbeiter
-    ? anwesendeIds.has(aktuellerMitarbeiter.id)
-    : false;
+  const eigeneAnwesenheit = aktuellerMitarbeiter
+    ? anwesenheitenHeute.find(
+        (a) => a.mitarbeiterId === aktuellerMitarbeiter.id
+      ) ?? null
+    : null;
 
   const eintraege = vorgaenge
     .map((v) => {
@@ -253,7 +255,7 @@ export default async function UebersichtPage() {
       {aktuellerMitarbeiter && (
         <WerIstHeuteDa
           aktuellerMitarbeiter={aktuellerMitarbeiter}
-          bereitsAnwesend={bereitsAnwesend}
+          anwesenheit={eigeneAnwesenheit}
         />
       )}
 

@@ -1,20 +1,34 @@
 "use client";
 
 import { useTransition } from "react";
-import { markiereAnwesend, entferneAnwesend } from "@/lib/actions";
+import {
+  markiereAnwesend,
+  entferneAnwesend,
+  beendeArbeitstag,
+} from "@/lib/actions";
+import { formatBerlinUhrzeit } from "@/lib/zeit";
+
+const ORT_LABEL: Record<string, string> = {
+  BUERO: "Büro",
+  HOMEOFFICE: "Homeoffice",
+};
 
 export default function WerIstHeuteDa({
   aktuellerMitarbeiter,
-  bereitsAnwesend,
+  anwesenheit,
 }: {
   aktuellerMitarbeiter: { id: string; name: string };
-  bereitsAnwesend: boolean;
+  anwesenheit: {
+    ort: string | null;
+    loginZeit: Date | null;
+    logoutZeit: Date | null;
+  } | null;
 }) {
   const [pending, startTransition] = useTransition();
 
-  function markieren() {
+  function daImOrt(ort: "BUERO" | "HOMEOFFICE") {
     startTransition(() => {
-      markiereAnwesend(aktuellerMitarbeiter.id);
+      markiereAnwesend(aktuellerMitarbeiter.id, ort);
     });
   }
 
@@ -24,35 +38,78 @@ export default function WerIstHeuteDa({
     });
   }
 
-  if (bereitsAnwesend) {
+  function feierabend() {
+    startTransition(() => {
+      beendeArbeitstag(aktuellerMitarbeiter.id);
+    });
+  }
+
+  if (anwesenheit) {
+    const istHomeoffice = anwesenheit.ort === "HOMEOFFICE";
+
+    if (istHomeoffice && anwesenheit.logoutZeit) {
+      return (
+        <div className="card border-l-4 border-l-green-400 bg-green-50/60 p-4">
+          <p className="text-sm font-semibold text-green-700">
+            ✓ {aktuellerMitarbeiter.name} hat sich um{" "}
+            {formatBerlinUhrzeit(anwesenheit.logoutZeit)} Uhr abgemeldet.
+          </p>
+        </div>
+      );
+    }
+
+    const ortLabel = anwesenheit.ort ? ORT_LABEL[anwesenheit.ort] : null;
     return (
-      <div className="card border-l-4 border-l-green-400 bg-green-50/60 p-4 flex items-center justify-between gap-3">
+      <div className="card border-l-4 border-l-green-400 bg-green-50/60 p-4 flex items-center justify-between gap-3 flex-wrap">
         <p className="text-sm font-semibold text-green-700">
-          ✓ {aktuellerMitarbeiter.name} ist heute da.
+          ✓ {aktuellerMitarbeiter.name} ist heute da
+          {ortLabel ? ` (${ortLabel})` : ""}.
         </p>
-        <button
-          type="button"
-          onClick={zuruecksetzen}
-          disabled={pending}
-          className="text-xs link shrink-0"
-        >
-          Doch nicht? Rückgängig machen
-        </button>
+        <div className="flex items-center gap-3 shrink-0">
+          {istHomeoffice && (
+            <button
+              type="button"
+              onClick={feierabend}
+              disabled={pending}
+              className="btn-primary"
+            >
+              {pending ? "…" : "Feierabend"}
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={zuruecksetzen}
+            disabled={pending}
+            className="text-xs link"
+          >
+            Doch nicht? Rückgängig machen
+          </button>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="card border-l-4 border-l-[var(--color-primary-400)] bg-[var(--color-primary-50)]/60 p-4 flex items-center justify-between gap-3">
+    <div className="card border-l-4 border-l-[var(--color-primary-400)] bg-[var(--color-primary-50)]/60 p-4 flex items-center justify-between gap-3 flex-wrap">
       <p className="text-sm font-semibold">Bist du heute da?</p>
-      <button
-        type="button"
-        onClick={markieren}
-        disabled={pending}
-        className="btn-primary shrink-0"
-      >
-        {pending ? "…" : `Ja, ${aktuellerMitarbeiter.name} ist da`}
-      </button>
+      <div className="flex items-center gap-2 shrink-0">
+        <button
+          type="button"
+          onClick={() => daImOrt("BUERO")}
+          disabled={pending}
+          className="btn-primary"
+        >
+          {pending ? "…" : "Ja, im Büro"}
+        </button>
+        <button
+          type="button"
+          onClick={() => daImOrt("HOMEOFFICE")}
+          disabled={pending}
+          className="btn-primary"
+        >
+          {pending ? "…" : "Ja, im Homeoffice"}
+        </button>
+      </div>
     </div>
   );
 }

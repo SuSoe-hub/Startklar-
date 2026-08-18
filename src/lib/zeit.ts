@@ -65,6 +65,17 @@ export function formatBerlinDatetimeLocal(date: Date): string {
   return `${teile.year}-${teile.month}-${teile.day}T${teile.hour}:${teile.minute}`;
 }
 
+// Formatiert einen Zeitpunkt als reine Uhrzeit (HH:MM) in Europe/Berlin -
+// für Anzeigezwecke, z. B. Login-/Logout-Zeiten.
+export function formatBerlinUhrzeit(date: Date): string {
+  return new Intl.DateTimeFormat("de-DE", {
+    timeZone: BERLIN_TZ,
+    hourCycle: "h23",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(date);
+}
+
 // Liefert die Stunde (0-23) eines Zeitpunkts in Europe/Berlin-Wanduhrzeit -
 // unabhängig davon, in welcher Zeitzone der Server läuft (auf Vercel: UTC).
 // date.getHours() würde stattdessen die Server-Zeitzone verwenden.
