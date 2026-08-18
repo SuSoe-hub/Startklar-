@@ -8,6 +8,8 @@ import { heutigesDatumString, ANWESENHEIT_GEFRAGT_COOKIE } from "@/lib/teampool"
 import { getAktuellerMitarbeiter } from "@/lib/auth";
 import { parseBerlinDatetimeLocal, BERLIN_TZ } from "@/lib/zeit";
 import { ampelFarbe, istFaellig } from "@/lib/ampel";
+import { kundenBadge, OFFENE_STATI_LISTE } from "@/lib/kundenstatus";
+import { VorgangStatus, Kanal, Prisma } from "@/generated/prisma/client";
 import {
   ladeUngeleseneVorgaenge,
   zaehleGlockenAnzahl,
@@ -70,6 +72,111 @@ export async function checkDuplicateKunde(
           berater: letzterVorgang.berater.name,
         }
       : null,
+  };
+}
+
+export type ErledigterKundeVorgang = { status: string; kanal: string; beraterId: string };
+
+export type ErledigterKunde = {
+  id: string;
+  vorname: string;
+  nachname: string;
+  handynummer: string | null;
+  email: string | null;
+  istErledigt: true;
+  badge: ReturnType<typeof kundenBadge>;
+  vorgaenge: ErledigterKundeVorgang[];
+};
+
+export type ErledigteKundenFilter = {
+  suche: string;
+  status: string;
+  kanal: string;
+  beraterId: string;
+};
+
+const ERLEDIGT_TREFFER_LIMIT = 100;
+
+// Der "Erledigt"-Bestand wächst über die Jahre unbegrenzt (jeder
+// abgeschlossene Kunde bleibt für immer drin), im Gegensatz zu den aktiven
+// Kunden auf /kunden, die serverseitig vorgeladen werden. Statt die
+// komplette Historie bei jedem Seitenaufruf mitzuschicken, wird sie nur bei
+// Bedarf durchsucht - mit fester Obergrenze, damit eine sehr grobe Suche
+// (z.B. leeres Suchfeld bei tausenden Kunden) nicht die ganze Historie lädt.
+export async function sucheErledigteKunden(
+  filter: ErledigteKundenFilter
+): Promise<{ kunden: ErledigterKunde[]; abgeschnitten: boolean }> {
+  const mitarbeiter = await getAktuellerMitarbeiter();
+  if (!mitarbeiter) return { kunden: [], abgeschnitten: false };
+
+  const bedingungen: Prisma.KundeWhereInput[] = [
+    { vorgaenge: { some: {} } },
+    { NOT: { vorgaenge: { some: { status: { in: [...OFFENE_STATI_LISTE] } } } } },
+  ];
+
+  const begriff = filter.suche.trim();
+  if (begriff) {
+    for (const wort of begriff.split(/\s+/).filter(Boolean)) {
+      bedingungen.push({
+        OR: [
+          { vorname: { contains: wort, mode: "insensitive" } },
+          { nachname: { contains: wort, mode: "insensitive" } },
+          { handynummer: { contains: wort, mode: "insensitive" } },
+          { email: { contains: wort, mode: "insensitive" } },
+        ],
+      });
+    }
+  }
+
+  if (filter.status || filter.kanal || filter.beraterId) {
+    bedingungen.push({
+      vorgaenge: {
+        some: {
+          ...(filter.status && {
+            status:
+              filter.status === "ERLEDIGT"
+                ? { in: ["GEBUCHT", "VERLOREN", "ERLEDIGT"] as VorgangStatus[] }
+                : (filter.status as VorgangStatus),
+          }),
+          ...(filter.kanal && { kanal: filter.kanal as Kanal }),
+          ...(filter.beraterId && { beraterId: filter.beraterId }),
+        },
+      },
+    });
+  }
+
+  const kunden = await prisma.kunde.findMany({
+    where: { AND: bedingungen },
+    orderBy: { createdAt: "desc" },
+    take: ERLEDIGT_TREFFER_LIMIT,
+    include: {
+      vorgaenge: {
+        select: {
+          status: true,
+          kanal: true,
+          beraterId: true,
+          wiedervorlage: true,
+          optionsfrist: true,
+          optionsArt: true,
+          updatedAt: true,
+        },
+      },
+    },
+  });
+
+  const jetzt = new Date();
+  return {
+    kunden: kunden.map(({ vorgaenge, ...k }) => ({
+      ...k,
+      istErledigt: true as const,
+      badge: kundenBadge(vorgaenge, jetzt),
+      vorgaenge: vorgaenge.map((v) => ({
+        status: v.status,
+        kanal: v.kanal,
+        beraterId: v.beraterId,
+      })),
+    })),
+    abgeschnitten: kunden.length === ERLEDIGT_TREFFER_LIMIT,
   };
 }
 

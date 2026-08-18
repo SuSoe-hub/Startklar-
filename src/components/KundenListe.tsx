@@ -1,9 +1,10 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import CopyButton from "@/components/CopyButton";
 import { enthaeltUmlaut } from "@/lib/umlaute";
+import { sucheErledigteKunden } from "@/lib/actions";
 import type { KundenBadge, KundenBadgeFarbe } from "@/lib/kundenstatus";
 
 type KundeVorgang = {
@@ -50,11 +51,18 @@ const KANAL_LABEL: Record<string, string> = {
   VOR_ORT: "Vor Ort",
 };
 
+// Debounce für die serverseitige Erledigt-Suche - lange genug, dass wir nicht
+// bei jedem Tastendruck eine Anfrage schicken, kurz genug, dass es sich noch
+// wie Live-Suche anfühlt.
+const SUCHE_VERZOEGERUNG_MS = 300;
+
 export default function KundenListe({
   kunden,
+  erledigtAnzahl,
   alleMitarbeiter,
 }: {
   kunden: Kunde[];
+  erledigtAnzahl: number;
   alleMitarbeiter: Mitarbeiter[];
 }) {
   const [suche, setSuche] = useState("");
@@ -64,46 +72,29 @@ export default function KundenListe({
   const [beraterId, setBeraterId] = useState("");
   const filterAktiv = !!(status || kanal || beraterId);
 
-  const nachTab = useMemo(
-    () => kunden.filter((k) => (tab === "aktiv" ? !k.istErledigt : k.istErledigt)),
-    [kunden, tab]
-  );
-
-  const aktivAnzahl = useMemo(() => kunden.filter((k) => !k.istErledigt).length, [kunden]);
-  const erledigtAnzahl = kunden.length - aktivAnzahl;
-
-  // Eine Option hat eine echte Frist und kann im Zweifel Geld kosten -
-  // deshalb darf ein Kunde mit offener Option nie durch einen Filter aus der
-  // Liste verschwinden (siehe StartseiteFilter.tsx für dieselbe Regel).
-  //
-  // Der "Erledigt"-Filter deckt neben dem echten Status ERLEDIGT auch
-  // Gebucht und Verloren ab (gleiche Definition wie kundeIstErledigt in
-  // kundenstatus.ts: alles außerhalb der offenen Stati).
-  const nachFilter = useMemo(() => {
-    if (!filterAktiv) return nachTab;
-    return nachTab.filter((k) =>
-      k.vorgaenge.some((v) => {
-        const statusPasst =
-          !status ||
-          (status === "ERLEDIGT"
-            ? v.status === "GEBUCHT" ||
-              v.status === "VERLOREN" ||
-              v.status === "ERLEDIGT"
-            : v.status === status);
-        return (
-          v.status === "OPTION" ||
-          (statusPasst &&
-            (!kanal || v.kanal === kanal) &&
-            (!beraterId || v.beraterId === beraterId))
-        );
-      })
-    );
-  }, [nachTab, filterAktiv, status, kanal, beraterId]);
-
-  const gefiltert = useMemo(() => {
+  // Die aktiven Kunden sind schon vom Server vorgefiltert (siehe
+  // kunden/page.tsx) und bleiben über die Jahre ungefähr gleich groß, daher
+  // hier weiterhin ganz normale, sofortige Client-Filterung.
+  const aktivGefiltert = useMemo(() => {
+    let liste = kunden;
+    if (filterAktiv) {
+      liste = liste.filter((k) =>
+        k.vorgaenge.some((v) => {
+          const statusPasst =
+            !status ||
+            (status === "ERLEDIGT"
+              ? v.status === "GEBUCHT" || v.status === "VERLOREN" || v.status === "ERLEDIGT"
+              : v.status === status);
+          return (
+            v.status === "OPTION" ||
+            (statusPasst && (!kanal || v.kanal === kanal) && (!beraterId || v.beraterId === beraterId))
+          );
+        })
+      );
+    }
     const begriff = suche.trim().toLowerCase();
-    if (!begriff) return nachFilter;
-    return nachFilter.filter((k) => {
+    if (!begriff) return liste;
+    return liste.filter((k) => {
       const name = `${k.vorname} ${k.nachname}`.toLowerCase();
       return (
         name.includes(begriff) ||
@@ -111,7 +102,31 @@ export default function KundenListe({
         (k.email ?? "").toLowerCase().includes(begriff)
       );
     });
-  }, [nachFilter, suche]);
+  }, [kunden, filterAktiv, status, kanal, beraterId, suche]);
+
+  // Erledigte Kunden wachsen unbegrenzt (jeder abgeschlossene Kunde bleibt
+  // für immer in der Historie) und werden deshalb nicht vorgeladen, sondern
+  // nur bei Bedarf serverseitig durchsucht, sobald der Tab aktiv ist.
+  const [erledigtErgebnisse, setErledigtErgebnisse] = useState<Kunde[]>([]);
+  const [erledigtLaedt, setErledigtLaedt] = useState(false);
+  const [erledigtAbgeschnitten, setErledigtAbgeschnitten] = useState(false);
+  const anfrageZaehler = useRef(0);
+
+  useEffect(() => {
+    if (tab !== "erledigt") return;
+    const eigeneNummer = ++anfrageZaehler.current;
+    setErledigtLaedt(true);
+    const timer = setTimeout(async () => {
+      const ergebnis = await sucheErledigteKunden({ suche, status, kanal, beraterId });
+      if (anfrageZaehler.current !== eigeneNummer) return; // veraltete Antwort, ignorieren
+      setErledigtErgebnisse(ergebnis.kunden);
+      setErledigtAbgeschnitten(ergebnis.abgeschnitten);
+      setErledigtLaedt(false);
+    }, SUCHE_VERZOEGERUNG_MS);
+    return () => clearTimeout(timer);
+  }, [tab, suche, status, kanal, beraterId]);
+
+  const gefiltert = tab === "aktiv" ? aktivGefiltert : erledigtErgebnisse;
 
   return (
     <>
@@ -121,7 +136,7 @@ export default function KundenListe({
           onClick={() => setTab("aktiv")}
           className={tab === "aktiv" ? "btn-primary" : "btn-secondary"}
         >
-          Aktiv ({aktivAnzahl})
+          Aktiv ({kunden.length})
         </button>
         <button
           type="button"
@@ -226,16 +241,26 @@ export default function KundenListe({
         Hat der Kunde schon einmal gebucht? In Argus nachschauen →
       </a>
 
-      {gefiltert.length === 0 && (
-        <p className="text-sm text-[var(--color-muted)]">
-          {suche
-            ? "Kein Kunde gefunden."
-            : filterAktiv
-              ? "Kein Kunde für diese Filterauswahl."
-              : tab === "aktiv"
-                ? "Keine aktiven Kunden."
-                : "Noch keine erledigten Kunden."}
+      {tab === "erledigt" && erledigtAbgeschnitten && (
+        <p className="text-xs text-[var(--color-muted)] mb-2">
+          Zeige die neuesten 100 Treffer – für weniger bitte Suche oder Filter eingrenzen.
         </p>
+      )}
+
+      {tab === "erledigt" && erledigtLaedt ? (
+        <p className="text-sm text-[var(--color-muted)]">Suche läuft…</p>
+      ) : (
+        gefiltert.length === 0 && (
+          <p className="text-sm text-[var(--color-muted)]">
+            {suche
+              ? "Kein Kunde gefunden."
+              : filterAktiv
+                ? "Kein Kunde für diese Filterauswahl."
+                : tab === "aktiv"
+                  ? "Keine aktiven Kunden."
+                  : "Noch keine erledigten Kunden."}
+          </p>
+        )
       )}
 
       <ul className="flex flex-col gap-2">

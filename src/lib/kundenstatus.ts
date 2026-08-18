@@ -1,6 +1,7 @@
 import { ampelFarbe, ampelSortWert } from "@/lib/ampel";
 
-const OFFENE_STATI = new Set(["ANGEBOT_RAUS", "NACHFASSEN", "OPTION"]);
+export const OFFENE_STATI_LISTE = ["ANGEBOT_RAUS", "NACHFASSEN", "OPTION"] as const;
+const OFFENE_STATI = new Set<string>(OFFENE_STATI_LISTE);
 
 type VorgangFuerStatus = {
   status: string;
