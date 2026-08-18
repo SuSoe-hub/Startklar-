@@ -10,6 +10,7 @@ import { parseBerlinDatetimeLocal, BERLIN_TZ } from "@/lib/zeit";
 import { ampelFarbe, istFaellig } from "@/lib/ampel";
 import { kundenBadge, OFFENE_STATI_LISTE } from "@/lib/kundenstatus";
 import { VorgangStatus, Kanal, Prisma } from "@/generated/prisma/client";
+import { findeZurLoeschungFaelligeKunden, loescheAbgelaufeneKunden } from "@/lib/loeschregel";
 import {
   ladeUngeleseneVorgaenge,
   zaehleGlockenAnzahl,
@@ -913,6 +914,35 @@ export async function toggleSmileys(formData: FormData) {
 
   revalidatePath("/einstellungen");
   revalidatePath("/");
+}
+
+// Löschregel für abgeschlossene Kunden (3 Jahre Aufbewahrung ab letzter
+// Aktivität, siehe loeschregel.ts) - nur ein Admin darf sich die Vorschau
+// anzeigen lassen oder die Löschung auslösen, da das unwiderruflich echte
+// Kundendaten entfernt.
+export async function zaehleZurLoeschungFaelligeKunden(): Promise<number> {
+  const mitarbeiter = await getAktuellerMitarbeiter();
+  if (!mitarbeiter?.istAdmin) return 0;
+
+  const faellig = await findeZurLoeschungFaelligeKunden(new Date());
+  return faellig.length;
+}
+
+export type LoeschregelFormState = { error: string | null; anzahl: number | null };
+
+export async function loescheAbgelaufeneKundenJetzt(
+  _prevState: LoeschregelFormState,
+  _formData: FormData
+): Promise<LoeschregelFormState> {
+  const mitarbeiter = await getAktuellerMitarbeiter();
+  if (!mitarbeiter?.istAdmin) {
+    return { error: "Nur Admins dürfen die Löschregel auslösen.", anzahl: null };
+  }
+
+  const { anzahl } = await loescheAbgelaufeneKunden(new Date());
+  revalidatePath("/kunden");
+  revalidatePath("/einstellungen");
+  return { error: null, anzahl };
 }
 
 export type MergeFormState = { error: string | null };

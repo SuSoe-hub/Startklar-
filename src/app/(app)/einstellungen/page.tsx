@@ -5,6 +5,7 @@ import SchwelleForm from "@/components/SchwelleForm";
 import VeranstalterZeile from "@/components/VeranstalterZeile";
 import VeranstalterHinzufuegenForm from "@/components/VeranstalterHinzufuegenForm";
 import MitarbeiterPinForm from "@/components/MitarbeiterPinForm";
+import LoeschregelPanel from "@/components/LoeschregelPanel";
 import { toggleSmileys } from "@/lib/actions";
 
 export default async function EinstellungenPage() {
@@ -86,6 +87,8 @@ export default async function EinstellungenPage() {
           </ul>
         </div>
       )}
+
+      {aktuellerMitarbeiter?.istAdmin && <LoeschregelPanel />}
     </main>
   );
 }
