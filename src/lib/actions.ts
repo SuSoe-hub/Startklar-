@@ -7,6 +7,7 @@ import { cookies } from "next/headers";
 import { heutigesDatumString, ANWESENHEIT_GEFRAGT_COOKIE } from "@/lib/teampool";
 import { getAktuellerMitarbeiter } from "@/lib/auth";
 import { parseBerlinDatetimeLocal, BERLIN_TZ } from "@/lib/zeit";
+import { ampelFarbe, istFaellig } from "@/lib/ampel";
 import {
   ladeUngeleseneVorgaenge,
   zaehleGlockenAnzahl,
@@ -1303,4 +1304,33 @@ export async function erledigeKollegenNotiz(
 
   revalidatePath("/kollegen-notizen");
   return { error: null };
+}
+
+// Für die Abmelden-Bestätigung im Menü: prüft, ob der eigene Berater noch
+// heute fällige oder überfällige Vorgänge offen hat, damit niemand ohne
+// diesen Hinweis abmeldet (Susannas Wunsch, damit fällige Vorgänge nicht
+// unbearbeitet liegen bleiben).
+export async function zaehleMeineFaelligenVorgaenge(): Promise<number> {
+  const mitarbeiter = await getAktuellerMitarbeiter();
+  if (!mitarbeiter) return 0;
+
+  const jetzt = new Date();
+  const vorgaenge = await prisma.vorgang.findMany({
+    where: {
+      beraterId: mitarbeiter.id,
+      status: { in: ["ANGEBOT_RAUS", "NACHFASSEN", "OPTION"] },
+    },
+    include: { kunde: true },
+  });
+
+  return vorgaenge.filter((v) => {
+    const kontaktUnvollstaendig = !(v.kunde.handynummer && v.kunde.email);
+    const farbe = ampelFarbe({
+      kontaktUnvollstaendig,
+      wiedervorlage: v.wiedervorlage,
+      optionsfrist: v.optionsfrist,
+      jetzt,
+    });
+    return istFaellig(farbe);
+  }).length;
 }

@@ -3,7 +3,6 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
 import { getAktuellerMitarbeiter } from "@/lib/auth";
-import { logout } from "@/lib/auth-actions";
 import { prisma } from "@/lib/prisma";
 import { ANWESENHEIT_GEFRAGT_COOKIE, heutigesDatumString } from "@/lib/teampool";
 import { zaehleGlockenAnzahl } from "@/lib/benachrichtigung";
@@ -71,11 +70,6 @@ export default async function AppLayout({
             <span className="px-2 text-sm font-bold text-[var(--color-muted)]">
               {mitarbeiter.name}
             </span>
-            <form action={logout}>
-              <button type="submit" className="btn-secondary w-full">
-                Abmelden
-              </button>
-            </form>
           </div>
         </aside>
 

@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
-import { logout } from "@/lib/auth-actions";
 import SidebarNav from "./SidebarNav";
 
 export default function MobileNav({
@@ -34,15 +33,10 @@ export default function MobileNav({
       {offen && (
         <div className="fixed inset-x-0 top-14 z-20 bg-white border-b border-[var(--color-border)] p-4 flex flex-col gap-3 shadow-md">
           <SidebarNav istAdmin={istAdmin} />
-          <div className="flex items-center justify-between gap-2 pt-3 border-t border-[var(--color-border)]">
-            <span className="text-sm font-bold text-[var(--color-muted)]">
+          <div className="pt-3 border-t border-[var(--color-border)]">
+            <span className="px-2 text-sm font-bold text-[var(--color-muted)]">
               {mitarbeiterName}
             </span>
-            <form action={logout}>
-              <button type="submit" className="btn-secondary">
-                Abmelden
-              </button>
-            </form>
           </div>
         </div>
       )}
