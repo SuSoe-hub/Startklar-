@@ -133,6 +133,11 @@ export default function KundeForm() {
           onBlur={() => pruefeDublette(handynummer, email)}
           className="input"
         />
+        {hinweis?.handyTreffer && (
+          <p className="text-xs font-semibold text-orange-700">
+            Diese Handynummer ist bereits bei {hinweis.name} hinterlegt.
+          </p>
+        )}
       </div>
 
       <div className="flex flex-col gap-1">
@@ -148,6 +153,11 @@ export default function KundeForm() {
           onBlur={() => pruefeDublette(handynummer, email)}
           className="input"
         />
+        {hinweis?.emailTreffer && (
+          <p className="text-xs font-semibold text-orange-700">
+            Diese E-Mail-Adresse ist bereits bei {hinweis.name} hinterlegt.
+          </p>
+        )}
       </div>
 
       <p className="text-xs text-[var(--color-muted)]">
