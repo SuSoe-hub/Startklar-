@@ -789,6 +789,8 @@ export async function updateWiedervorlage(
     });
 
     revalidatePath(`/vorgaenge/${vorgangId}`);
+    revalidatePath(`/kunden/${vorgang.kundeId}`);
+    revalidatePath("/");
 
     const jetzt = new Date();
     const aktuellerMitarbeiter = await getAktuellerMitarbeiter();
