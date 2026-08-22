@@ -178,10 +178,12 @@ export default async function KundeDetailPage({
             Daten dieses Kunden exportieren (JSON)
           </a>
         )}
-        <DeleteKundeButton
-          kundeId={kunde.id}
-          anzahlVorgaenge={kunde.vorgaenge.length}
-        />
+        {aktuellerMitarbeiter?.istAdmin && (
+          <DeleteKundeButton
+            kundeId={kunde.id}
+            anzahlVorgaenge={kunde.vorgaenge.length}
+          />
+        )}
       </div>
     </main>
   );

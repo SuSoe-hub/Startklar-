@@ -994,6 +994,11 @@ export async function deleteKunde(
   _prevState: DeleteKundeFormState,
   formData: FormData
 ): Promise<DeleteKundeFormState> {
+  const mitarbeiter = await getAktuellerMitarbeiter();
+  if (!mitarbeiter?.istAdmin) {
+    return { error: "Nur Admins dürfen Kunden löschen." };
+  }
+
   const mitVorgaengen = formData.get("mitVorgaengen") === "on";
   const anzahlVorgaenge = await prisma.vorgang.count({ where: { kundeId } });
 
