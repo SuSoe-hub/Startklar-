@@ -110,21 +110,32 @@ export default function KundenListe({
   const [erledigtErgebnisse, setErledigtErgebnisse] = useState<Kunde[]>([]);
   const [erledigtLaedt, setErledigtLaedt] = useState(false);
   const [erledigtAbgeschnitten, setErledigtAbgeschnitten] = useState(false);
+  const [erledigtFehler, setErledigtFehler] = useState(false);
   const anfrageZaehler = useRef(0);
+  const [erneutVersuchen, setErneutVersuchen] = useState(0);
 
   useEffect(() => {
     if (tab !== "erledigt") return;
     const eigeneNummer = ++anfrageZaehler.current;
     setErledigtLaedt(true);
+    setErledigtFehler(false);
     const timer = setTimeout(async () => {
-      const ergebnis = await sucheErledigteKunden({ suche, status, kanal, beraterId });
-      if (anfrageZaehler.current !== eigeneNummer) return; // veraltete Antwort, ignorieren
-      setErledigtErgebnisse(ergebnis.kunden);
-      setErledigtAbgeschnitten(ergebnis.abgeschnitten);
-      setErledigtLaedt(false);
+      try {
+        const ergebnis = await sucheErledigteKunden({ suche, status, kanal, beraterId });
+        if (anfrageZaehler.current !== eigeneNummer) return; // veraltete Antwort, ignorieren
+        setErledigtErgebnisse(ergebnis.kunden);
+        setErledigtAbgeschnitten(ergebnis.abgeschnitten);
+        setErledigtFehler(ergebnis.fehler);
+        setErledigtLaedt(false);
+      } catch {
+        if (anfrageZaehler.current !== eigeneNummer) return;
+        setErledigtErgebnisse([]);
+        setErledigtFehler(true);
+        setErledigtLaedt(false);
+      }
     }, SUCHE_VERZOEGERUNG_MS);
     return () => clearTimeout(timer);
-  }, [tab, suche, status, kanal, beraterId]);
+  }, [tab, suche, status, kanal, beraterId, erneutVersuchen]);
 
   const gefiltert = tab === "aktiv" ? aktivGefiltert : erledigtErgebnisse;
 
@@ -249,6 +260,17 @@ export default function KundenListe({
 
       {tab === "erledigt" && erledigtLaedt ? (
         <p className="text-sm text-[var(--color-muted)]">Suche läuft…</p>
+      ) : tab === "erledigt" && erledigtFehler ? (
+        <p className="text-sm text-red-700 flex items-center gap-2 flex-wrap">
+          Suche fehlgeschlagen, bitte erneut versuchen.
+          <button
+            type="button"
+            onClick={() => setErneutVersuchen((n) => n + 1)}
+            className="link"
+          >
+            Erneut versuchen
+          </button>
+        </p>
       ) : (
         gefiltert.length === 0 && (
           <p className="text-sm text-[var(--color-muted)]">

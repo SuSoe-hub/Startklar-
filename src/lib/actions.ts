@@ -106,79 +106,85 @@ const ERLEDIGT_TREFFER_LIMIT = 100;
 // (z.B. leeres Suchfeld bei tausenden Kunden) nicht die ganze Historie lädt.
 export async function sucheErledigteKunden(
   filter: ErledigteKundenFilter
-): Promise<{ kunden: ErledigterKunde[]; abgeschnitten: boolean }> {
-  const mitarbeiter = await getAktuellerMitarbeiter();
-  if (!mitarbeiter) return { kunden: [], abgeschnitten: false };
+): Promise<{ kunden: ErledigterKunde[]; abgeschnitten: boolean; fehler: boolean }> {
+  try {
+    const mitarbeiter = await getAktuellerMitarbeiter();
+    if (!mitarbeiter) return { kunden: [], abgeschnitten: false, fehler: true };
 
-  const bedingungen: Prisma.KundeWhereInput[] = [
-    { vorgaenge: { some: {} } },
-    { NOT: { vorgaenge: { some: { status: { in: [...OFFENE_STATI_LISTE] } } } } },
-  ];
+    const bedingungen: Prisma.KundeWhereInput[] = [
+      { vorgaenge: { some: {} } },
+      { NOT: { vorgaenge: { some: { status: { in: [...OFFENE_STATI_LISTE] } } } } },
+    ];
 
-  const begriff = filter.suche.trim();
-  if (begriff) {
-    for (const wort of begriff.split(/\s+/).filter(Boolean)) {
+    const begriff = filter.suche.trim();
+    if (begriff) {
+      for (const wort of begriff.split(/\s+/).filter(Boolean)) {
+        bedingungen.push({
+          OR: [
+            { vorname: { contains: wort, mode: "insensitive" } },
+            { nachname: { contains: wort, mode: "insensitive" } },
+            { handynummer: { contains: wort, mode: "insensitive" } },
+            { email: { contains: wort, mode: "insensitive" } },
+          ],
+        });
+      }
+    }
+
+    if (filter.status || filter.kanal || filter.beraterId) {
       bedingungen.push({
-        OR: [
-          { vorname: { contains: wort, mode: "insensitive" } },
-          { nachname: { contains: wort, mode: "insensitive" } },
-          { handynummer: { contains: wort, mode: "insensitive" } },
-          { email: { contains: wort, mode: "insensitive" } },
-        ],
+        vorgaenge: {
+          some: {
+            ...(filter.status && {
+              status:
+                filter.status === "ERLEDIGT"
+                  ? { in: ["GEBUCHT", "VERLOREN", "ERLEDIGT"] as VorgangStatus[] }
+                  : (filter.status as VorgangStatus),
+            }),
+            ...(filter.kanal && { kanal: filter.kanal as Kanal }),
+            ...(filter.beraterId && { beraterId: filter.beraterId }),
+          },
+        },
       });
     }
-  }
 
-  if (filter.status || filter.kanal || filter.beraterId) {
-    bedingungen.push({
-      vorgaenge: {
-        some: {
-          ...(filter.status && {
-            status:
-              filter.status === "ERLEDIGT"
-                ? { in: ["GEBUCHT", "VERLOREN", "ERLEDIGT"] as VorgangStatus[] }
-                : (filter.status as VorgangStatus),
-          }),
-          ...(filter.kanal && { kanal: filter.kanal as Kanal }),
-          ...(filter.beraterId && { beraterId: filter.beraterId }),
+    const kunden = await prisma.kunde.findMany({
+      where: { AND: bedingungen },
+      orderBy: { createdAt: "desc" },
+      take: ERLEDIGT_TREFFER_LIMIT,
+      include: {
+        vorgaenge: {
+          select: {
+            status: true,
+            kanal: true,
+            beraterId: true,
+            wiedervorlage: true,
+            optionsfrist: true,
+            optionsArt: true,
+            updatedAt: true,
+          },
         },
       },
     });
-  }
 
-  const kunden = await prisma.kunde.findMany({
-    where: { AND: bedingungen },
-    orderBy: { createdAt: "desc" },
-    take: ERLEDIGT_TREFFER_LIMIT,
-    include: {
-      vorgaenge: {
-        select: {
-          status: true,
-          kanal: true,
-          beraterId: true,
-          wiedervorlage: true,
-          optionsfrist: true,
-          optionsArt: true,
-          updatedAt: true,
-        },
-      },
-    },
-  });
-
-  const jetzt = new Date();
-  return {
-    kunden: kunden.map(({ vorgaenge, ...k }) => ({
-      ...k,
-      istErledigt: true as const,
-      badge: kundenBadge(vorgaenge, jetzt),
-      vorgaenge: vorgaenge.map((v) => ({
-        status: v.status,
-        kanal: v.kanal,
-        beraterId: v.beraterId,
+    const jetzt = new Date();
+    return {
+      kunden: kunden.map(({ vorgaenge, ...k }) => ({
+        ...k,
+        istErledigt: true as const,
+        badge: kundenBadge(vorgaenge, jetzt),
+        vorgaenge: vorgaenge.map((v) => ({
+          status: v.status,
+          kanal: v.kanal,
+          beraterId: v.beraterId,
+        })),
       })),
-    })),
-    abgeschnitten: kunden.length === ERLEDIGT_TREFFER_LIMIT,
-  };
+      abgeschnitten: kunden.length === ERLEDIGT_TREFFER_LIMIT,
+      fehler: false,
+    };
+  } catch (fehlerObjekt) {
+    console.error("sucheErledigteKunden fehlgeschlagen:", fehlerObjekt);
+    return { kunden: [], abgeschnitten: false, fehler: true };
+  }
 }
 
 export type KundeFormState = {
