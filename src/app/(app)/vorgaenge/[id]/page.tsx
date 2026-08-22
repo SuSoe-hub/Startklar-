@@ -176,9 +176,11 @@ export default async function VorgangDetailPage({
         </ul>
       </section>
 
-      <div className="mt-2">
-        <DeleteVorgangButton vorgangId={vorgang.id} />
-      </div>
+      {aktuellerMitarbeiter?.istAdmin && (
+        <div className="mt-2">
+          <DeleteVorgangButton vorgangId={vorgang.id} />
+        </div>
+      )}
     </main>
   );
 }

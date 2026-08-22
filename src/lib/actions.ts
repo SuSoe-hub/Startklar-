@@ -1021,6 +1021,11 @@ export async function deleteVorgang(
   _prevState: DeleteVorgangFormState,
   _formData: FormData
 ): Promise<DeleteVorgangFormState> {
+  const mitarbeiter = await getAktuellerMitarbeiter();
+  if (!mitarbeiter?.istAdmin) {
+    return { error: "Nur Admins dürfen Vorgänge löschen." };
+  }
+
   const vorgang = await prisma.vorgang.findUnique({
     where: { id: vorgangId },
     select: { kundeId: true },
